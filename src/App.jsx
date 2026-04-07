@@ -1,57 +1,75 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Plus, Check, X, Menu, ExternalLink, Home, ChefHat, Sofa, BedDouble,
   ShowerHead, WashingMachine, Monitor, Car, TreePine, Bot, Settings, BookOpen,
-  Wallet, Heart, Gift, Landmark, PiggyBank, TrendingUp, Package, BarChart3,
-  Grid3X3, List, Sparkles, CircleDollarSign, ArrowUpRight, Trash2, Star,
-  AlertTriangle, Clock, CheckCircle2, Video, Image, StickyNote, Tag, GripVertical,
-  Zap, Lightbulb, User, Users, Receipt, PiggyBank as Piggy
+  Wallet, Heart, Gift, Landmark, Package, Grid3X3, List, Sparkles,
+  CircleDollarSign, Trash2, AlertTriangle, Video, Zap, Lightbulb,
+  Link2, Loader2, Sun, Moon, SlidersHorizontal, Bell,
+  Download, Upload, RotateCcw, Eye, EyeOff, ArrowUpRight, Image as ImageIcon, Maximize2, Minimize2,
+  Pencil, TrendingUp, PiggyBank, Globe, Clipboard,
+  CheckCircle2, XCircle, Star, Palette, Tag,
+  Utensils, Lamp, Bath, Refrigerator, Tv, Coffee, Bed, Armchair,
+  Fan, Thermometer, Lock, Wifi, Speaker, Gamepad2, Dumbbell,
+  Baby, Dog, Cat, Flower2, Shirt, BookOpenCheck, GraduationCap,
+  Plane, Music, Camera, Brush, Wrench, Hammer, Plug,
+  Droplets, Flame, Wind, Snowflake, UtensilsCrossed,
+  Crown, Trophy, Medal, Award, Gem, Coins, Receipt,
+  Clock, Timer, CalendarDays, MapPin, Navigation,
+  ShoppingBag, ShoppingCart, Store, CreditCard, Banknote,
+  Phone, Laptop, Tablet, Watch, Headphones, Bluetooth,
+  Lightbulb as LightbulbIcon, Power, Battery, Signal,
+  Cloud, CloudRain, Umbrella, Rainbow,
+  Heart as HeartIcon, Smile, Frown, PartyPopper
 } from 'lucide-react';
 import './index.css';
-
 import { db, ref, onValue, set as dbSet } from './firebase';
 
-/* ─── Data Store ─── */
-const STORE_KEY = 'nossa_casa_data_v5';
+/* ─── Data ─── */
+const STORE_KEY = 'nossa_casa_data_v6';
+const SETTINGS_KEY = 'nossa_casa_settings_v2';
 
-function loadData() {
-  try {
-    const raw = localStorage.getItem(STORE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch { return null; }
-  return null;
-}
-
-function saveData(data) {
-  localStorage.setItem(STORE_KEY, JSON.stringify(data));
-}
+function loadData() { try { const r = localStorage.getItem(STORE_KEY); return r ? JSON.parse(r) : null; } catch { return null; } }
+function saveData(d) { localStorage.setItem(STORE_KEY, JSON.stringify(d)); }
+function loadSettings() { try { const r = localStorage.getItem(SETTINGS_KEY); return r ? JSON.parse(r) : null; } catch { return null; } }
+function saveSettings(s) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }
 
 async function cloudWrite(data) {
   try {
-    // PROTEÇÃO: Nunca permitir sobrescrever o banco com dados vazios acidentalmente
-    if (!data.items || data.items.length < 10) {
-      console.warn('Proteção de dados: Tentativa de salvar lista incompleta bloqueada.');
-      return null;
-    }
     const v = Date.now();
-    const dbRef = ref(db, 'shared-data');
-    await dbSet(dbRef, { ...data, version: v });
+    await dbSet(ref(db, 'shared-data'), { ...data, version: v });
     return v;
-  } catch (err) {
-    console.warn('Firebase Write Error:', err);
-    return null;
-  }
+  } catch (err) { console.warn('Firebase Write Error:', err); return null; }
 }
 
 function convertCloudData(remote) {
   if (!remote) return null;
-  return {
-    items: remote.items || [],
-    rooms: remote.rooms || DEFAULT_ROOMS,
-    cashBox: remote.cashBox || { dele: 0, dela: 0, outros: 0, reserva: 0 },
-    version: remote.version || 0
-  };
+  return { items: remote.items || [], rooms: remote.rooms || DEFAULT_ROOMS, cashBox: remote.cashBox || { dele: 0, dela: 0, outros: 0, reserva: 0 }, version: remote.version || 0 };
 }
+
+/* ─── Icon Library ─── */
+const ALL_ICONS = {
+  Home, ChefHat, Sofa, BedDouble, ShowerHead, WashingMachine, Monitor, Car, TreePine, Bot,
+  Utensils, Lamp, Bath, Tv, Coffee, Bed, Armchair, Fan, Thermometer, Lock, Wifi,
+  Speaker, Gamepad2, Dumbbell, Baby, Dog, Cat, Flower2, Shirt, BookOpenCheck,
+  GraduationCap, Plane, Music, Camera, Brush, Wrench, Hammer, Plug, Droplets,
+  Flame, Wind, Snowflake, UtensilsCrossed, Crown, Trophy, Medal, Award, Gem,
+  Coins, Receipt, Clock, Timer, CalendarDays, MapPin, Navigation, ShoppingBag,
+  ShoppingCart, Store, CreditCard, Banknote, Phone, Laptop, Tablet, Watch,
+  Headphones, Bluetooth, Power, Battery, Signal, Cloud, CloudRain,
+  Umbrella, Rainbow, Heart, Smile, Frown, PartyPopper, Star, Tag, Package,
+  Sparkles, PiggyBank, Gift, Landmark, Wallet, Settings, Pencil, TrendingUp,
+  Zap, Lightbulb, AlertTriangle
+};
+
+const ICON_NAMES = Object.keys(ALL_ICONS);
+
+const CATEGORY_COLORS = [
+  '#f59e0b', '#3b82f6', '#ec4899', '#22c55e', '#a78bfa', '#06b6d4',
+  '#ef4444', '#f97316', '#84cc16', '#14b8a6', '#6366f1', '#d946ef',
+  '#e11d48', '#0ea5e9', '#10b981', '#f43f5e', '#8b5cf6', '#facc15',
+  '#fb923c', '#2dd4bf', '#818cf8', '#c084fc', '#fbbf24', '#34d399',
+];
 
 /* ─── Constants ─── */
 const VERSES = [
@@ -69,74 +87,419 @@ const VERSES = [
   { text: 'Ensina a criança no caminho em que deve andar, e, ainda quando for velha, não se desviará dele.', ref: 'Provérbios 22:6' },
 ];
 
-const ROOM_ICONS = {
-  cozinha: ChefHat, sala: Sofa, quarto: BedDouble, banheiro: ShowerHead,
-  lavanderia: WashingMachine, escritorio: Monitor, garagem: Car,
-  area_externa: TreePine, tecnologia: Bot
-};
-
 const DEFAULT_ROOMS = [
-  { id: 'cozinha', name: 'Cozinha', iconKey: 'cozinha' },
-  { id: 'sala', name: 'Sala', iconKey: 'sala' },
-  { id: 'quarto', name: 'Quarto', iconKey: 'quarto' },
-  { id: 'banheiro', name: 'Banheiro', iconKey: 'banheiro' },
-  { id: 'lavanderia', name: 'Lavanderia', iconKey: 'lavanderia' },
-  { id: 'escritorio', name: 'Escritório', iconKey: 'escritorio' },
-  { id: 'garagem', name: 'Garagem', iconKey: 'garagem' },
-  { id: 'area_externa', name: 'Área Externa', iconKey: 'area_externa' },
-  { id: 'tecnologia', name: 'Tecnologia & Automação', iconKey: 'tecnologia' },
+  { id: 'cozinha', name: 'Cozinha', iconKey: 'ChefHat', color: '#f59e0b' },
+  { id: 'sala', name: 'Sala', iconKey: 'Sofa', color: '#3b82f6' },
+  { id: 'quarto', name: 'Quarto', iconKey: 'BedDouble', color: '#ec4899' },
+  { id: 'banheiro', name: 'Banheiro', iconKey: 'ShowerHead', color: '#06b6d4' },
+  { id: 'lavanderia', name: 'Lavanderia', iconKey: 'WashingMachine', color: '#a78bfa' },
+  { id: 'escritorio', name: 'Escritório', iconKey: 'Monitor', color: '#22c55e' },
+  { id: 'garagem', name: 'Garagem', iconKey: 'Car', color: '#f97316' },
+  { id: 'area_externa', name: 'Área Externa', iconKey: 'TreePine', color: '#10b981' },
+  { id: 'tecnologia', name: 'Tecnologia', iconKey: 'Bot', color: '#6366f1' },
 ];
 
 const INITIAL_ITEMS = [
-  { id: '1', name: 'Geladeira Midea', price: 4200, room: 'cozinha', priority: 1, purchased: false, videoLink: 'https://meli.la/2HsdQuS' },
-  { id: '2', name: 'Lava e Seca', price: 3800, room: 'lavanderia', priority: 1, purchased: false, videoLink: 'https://meli.la/1LFYhGq' },
-  { id: '3', name: 'Forno Air Fryer', price: 1200, room: 'cozinha', priority: 2, purchased: false, videoLink: 'https://meli.la/27dGe7e' },
-  { id: '4', name: 'Air Fryer (Amazon)', price: 600, room: 'cozinha', priority: 2, purchased: false, videoLink: 'https://a.co/d/0dYMbALt' },
-  { id: '5', name: 'Liquidificador Turbo', price: 350, room: 'cozinha', priority: 3, purchased: false, videoLink: 'https://a.co/d/03JsJxsy' },
-  { id: '6', name: 'Batedeira Planetária', price: 850, room: 'cozinha', priority: 2, purchased: false, videoLink: 'https://a.co/d/02DCpNRM' },
-  { id: '7', name: 'Jogo de Talheres', price: 250, room: 'cozinha', priority: 2, purchased: false, videoLink: 'https://a.co/d/0ejzDttK' },
-  { id: '8', name: 'Kit de Facas Profissionais', price: 400, room: 'cozinha', priority: 2, purchased: false, videoLink: 'https://a.co/d/05BDTS5i' },
-  { id: '9', name: 'Cama King Premium Emma', price: 4500, room: 'quarto', priority: 1, purchased: false },
-  { id: '10', name: 'Sofá Modular 4 Lugares', price: 5800, room: 'sala', priority: 1, purchased: false, videoLink: 'https://sofanacaixa.com.br/products/sofa-na-caixa-modular-4-lugares-em-boucle-1canto-puff-cinza' },
-  { id: '11', name: 'Fogão de Indução Midea', price: 1800, room: 'cozinha', priority: 1, purchased: false, videoLink: 'https://www.magazineluiza.com.br/cooktop-4-bocas-eletrico-midea-vitroceramico-touch-digital-preto-acendimento-automatico-cyc40p2/p/240118700/ed/ck4b/' },
-  { id: '12', name: 'Kit Panelas Prime', price: 1100, room: 'cozinha', priority: 1, purchased: false, videoLink: 'https://a.co/d/0g1fX5nJ' },
-  { id: '13', name: 'Jogo de Copos Cristal', price: 150, room: 'cozinha', priority: 3, purchased: false, videoLink: 'https://www.mercadolivre.com.br/up/MLBU3564789520?pdp_filters=item_id:MLB4305363283' },
-  { id: '14', name: '2 Vasos Sanitários Prime', price: 2400, room: 'banheiro', priority: 2, purchased: false, videoLink: 'https://meli.la/1DF17sW' },
-  { id: '15', name: 'Tapete Banheiro Soft', price: 120, room: 'banheiro', priority: 3, purchased: false, videoLink: 'https://meli.la/1KpqxMe' },
-  { id: '16', name: 'Guarda-roupa Bartira Casal', price: 2200, room: 'quarto', priority: 1, purchased: false, videoLink: 'https://share.google/YHDL6Hd6TwpGV3sy9' },
-  { id: '17', name: 'Microondas Inox', price: 900, room: 'cozinha', priority: 2, purchased: false, videoLink: 'https://a.co/d/012NWzEk' },
-  { id: '18', name: 'TV Sala 70" Samsung 4K', price: 4200, room: 'sala', priority: 1, purchased: false, videoLink: 'https://www.magazineluiza.com.br/smart-tv-70-samsung-uhd-4k-crystal-u8500f-un70u8500fgxzd-tizen-2025/p/240576700/et/tv4k/' },
-  { id: '19', name: 'Rack Vivare 180cm', price: 1000, room: 'sala', priority: 2, purchased: false, videoLink: 'https://share.google/Z6avwn38jV8NEAOgI' },
-  { id: '20', name: 'Lustre Moderno Crystal', price: 1500, room: 'sala', priority: 3, purchased: false, videoLink: 'https://meli.la/2JxB3fa' },
+  { id: '1', name: 'Geladeira Midea', price: 4200, room: 'cozinha', priority: 1, purchased: false, videoLink: 'https://meli.la/2HsdQuS', rating: 0 },
+  { id: '2', name: 'Lava e Seca', price: 3800, room: 'lavanderia', priority: 1, purchased: false, videoLink: 'https://meli.la/1LFYhGq', rating: 0 },
+  { id: '3', name: 'Forno Air Fryer', price: 1200, room: 'cozinha', priority: 2, purchased: false, videoLink: 'https://meli.la/27dGe7e', rating: 0 },
+  { id: '4', name: 'Air Fryer (Amazon)', price: 600, room: 'cozinha', priority: 2, purchased: false, videoLink: 'https://a.co/d/0dYMbALt', rating: 0 },
+  { id: '5', name: 'Liquidificador Turbo', price: 350, room: 'cozinha', priority: 3, purchased: false, videoLink: 'https://a.co/d/03JsJxsy', rating: 0 },
+  { id: '6', name: 'Batedeira Planetária', price: 850, room: 'cozinha', priority: 2, purchased: false, videoLink: 'https://a.co/d/02DCpNRM', rating: 0 },
+  { id: '7', name: 'Jogo de Talheres', price: 250, room: 'cozinha', priority: 2, purchased: false, videoLink: 'https://a.co/d/0ejzDttK', rating: 0 },
+  { id: '8', name: 'Kit de Facas Profissionais', price: 400, room: 'cozinha', priority: 2, purchased: false, videoLink: 'https://a.co/d/05BDTS5i', rating: 0 },
+  { id: '9', name: 'Cama King Premium Emma', price: 4500, room: 'quarto', priority: 1, purchased: false, rating: 0 },
+  { id: '10', name: 'Sofá Modular 4 Lugares', price: 5800, room: 'sala', priority: 1, purchased: false, videoLink: 'https://sofanacaixa.com.br/products/sofa-na-caixa-modular-4-lugares-em-boucle-1canto-puff-cinza', rating: 0 },
+  { id: '11', name: 'Fogão de Indução Midea', price: 1800, room: 'cozinha', priority: 1, purchased: false, videoLink: 'https://www.magazineluiza.com.br/cooktop-4-bocas-eletrico-midea-vitroceramico-touch-digital-preto-acendimento-automatico-cyc40p2/p/240118700/ed/ck4b/', rating: 0 },
+  { id: '12', name: 'Kit Panelas Prime', price: 1100, room: 'cozinha', priority: 1, purchased: false, videoLink: 'https://a.co/d/0g1fX5nJ', rating: 0 },
+  { id: '13', name: 'Jogo de Copos Cristal', price: 150, room: 'cozinha', priority: 3, purchased: false, videoLink: 'https://www.mercadolivre.com.br/up/MLBU3564789520?pdp_filters=item_id:MLB4305363283', rating: 0 },
+  { id: '14', name: '2 Vasos Sanitários Prime', price: 2400, room: 'banheiro', priority: 2, purchased: false, videoLink: 'https://meli.la/1DF17sW', rating: 0 },
+  { id: '15', name: 'Tapete Banheiro Soft', price: 120, room: 'banheiro', priority: 3, purchased: false, videoLink: 'https://meli.la/1KpqxMe', rating: 0 },
+  { id: '16', name: 'Guarda-roupa Bartira Casal', price: 2200, room: 'quarto', priority: 1, purchased: false, videoLink: 'https://share.google/YHDL6Hd6TwpGV3sy9', rating: 0 },
+  { id: '17', name: 'Microondas Inox', price: 900, room: 'cozinha', priority: 2, purchased: false, videoLink: 'https://a.co/d/012NWzEk', rating: 0 },
+  { id: '18', name: 'TV Sala 70" Samsung 4K', price: 4200, room: 'sala', priority: 1, purchased: false, videoLink: 'https://www.magazineluiza.com.br/smart-tv-70-samsung-uhd-4k-crystal-u8500f-un70u8500fgxzd-tizen-2025/p/240576700/et/tv4k/', rating: 0 },
+  { id: '19', name: 'Rack Vivare 180cm', price: 1000, room: 'sala', priority: 2, purchased: false, videoLink: 'https://share.google/Z6avwn38jV8NEAOgI', rating: 0 },
+  { id: '20', name: 'Lustre Moderno Crystal', price: 1500, room: 'sala', priority: 3, purchased: false, videoLink: 'https://meli.la/2JxB3fa', rating: 0 },
 ];
 
-const DEFAULT_DATA = {
-  items: INITIAL_ITEMS,
-  rooms: DEFAULT_ROOMS,
-  cashBox: { dele: 0, dela: 0, outros: 0, reserva: 0 },
-  version: Date.now() // Super version to force override cloud
+const PRODUCT_SUGGESTIONS = {
+  cozinha: [
+    { name: 'Cafeteira Expresso', price: 800, priority: 2 },
+    { name: 'Torradeira Inox', price: 200, priority: 3 },
+    { name: 'Processador de Alimentos', price: 450, priority: 2 },
+    { name: 'Conjunto de Potes Herméticos', price: 120, priority: 3 },
+    { name: 'Escorredor de Louça Inox', price: 180, priority: 3 },
+    { name: 'Filtro de Água', price: 300, priority: 2 },
+    { name: 'Lixeira Automática Inox', price: 350, priority: 3 },
+    { name: 'Porta Temperos Giratório', price: 90, priority: 3 },
+  ],
+  sala: [
+    { name: 'Mesa de Centro', price: 800, priority: 2 },
+    { name: 'Tapete Decorativo', price: 600, priority: 3 },
+    { name: 'Cortina Blackout', price: 400, priority: 2 },
+    { name: 'Almofadas Decorativas (kit)', price: 200, priority: 3 },
+    { name: 'Luminária de Piso', price: 350, priority: 3 },
+    { name: 'Aparador / Console', price: 900, priority: 3 },
+  ],
+  quarto: [
+    { name: 'Kit Lençol 400 Fios', price: 350, priority: 2 },
+    { name: 'Travesseiro Nasa (par)', price: 250, priority: 2 },
+    { name: 'Edredom Pluma', price: 500, priority: 2 },
+    { name: 'Abajur Touch', price: 180, priority: 3 },
+    { name: 'Criado-mudo', price: 400, priority: 2 },
+    { name: 'Espelho Grande', price: 600, priority: 3 },
+  ],
+  banheiro: [
+    { name: 'Kit Acessórios Banheiro Inox', price: 200, priority: 2 },
+    { name: 'Ducha Higiênica', price: 150, priority: 2 },
+    { name: 'Organizador de Box', price: 80, priority: 3 },
+    { name: 'Toalheiro Elétrico', price: 400, priority: 3 },
+  ],
+  lavanderia: [
+    { name: 'Tábua de Passar', price: 200, priority: 2 },
+    { name: 'Varal de Teto Retrátil', price: 250, priority: 2 },
+    { name: 'Ferro a Vapor', price: 300, priority: 2 },
+  ],
+  escritorio: [
+    { name: 'Cadeira Ergonômica', price: 1500, priority: 1 },
+    { name: 'Mesa de Escritório', price: 800, priority: 1 },
+    { name: 'Luminária de Mesa LED', price: 200, priority: 2 },
+    { name: 'Organizador de Cabos', price: 60, priority: 3 },
+    { name: 'Suporte para Monitor', price: 150, priority: 2 },
+  ],
+  garagem: [
+    { name: 'Organizador de Parede', price: 200, priority: 3 },
+    { name: 'Kit Ferramentas Completo', price: 500, priority: 2 },
+  ],
+  area_externa: [
+    { name: 'Churrasqueira a Carvão', price: 1200, priority: 2 },
+    { name: 'Conjunto Mesa e Cadeiras Área Externa', price: 1500, priority: 2 },
+    { name: 'Rede de Descanso', price: 200, priority: 3 },
+  ],
+  tecnologia: [
+    { name: 'Echo Dot Alexa', price: 350, priority: 2 },
+    { name: 'Lâmpadas Inteligentes (kit)', price: 200, priority: 2 },
+    { name: 'Tomada Inteligente (kit)', price: 150, priority: 3 },
+    { name: 'Câmera de Segurança Wi-Fi', price: 300, priority: 2 },
+    { name: 'Roteador Wi-Fi 6', price: 500, priority: 1 },
+  ],
 };
 
-/* ─── Components ─── */
-function AnimIcon({ icon: Icon, size = 16, color, className = '', animate = '' }) {
-  if (!Icon) return null;
+const DEFAULT_SETTINGS = { theme: 'dark', showPurchased: true, showPrices: true, notifications: true };
+const DEFAULT_DATA = { items: INITIAL_ITEMS, rooms: DEFAULT_ROOMS, cashBox: { dele: 0, dela: 0, outros: 0, reserva: 0 }, version: Date.now() };
+
+/* ─── Helpers ─── */
+const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+const genId = () => Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+
+function detectStore(url) {
+  if (!url) return null;
+  const u = url.toLowerCase();
+  if (u.includes('amazon') || u.includes('a.co')) return { name: 'Amazon', color: '#FF9900' };
+  if (u.includes('mercadolivre') || u.includes('meli.la') || u.includes('mercadolibre')) return { name: 'Mercado Livre', color: '#FFE600' };
+  if (u.includes('magazineluiza') || u.includes('magalu')) return { name: 'Magazine Luiza', color: '#0086FF' };
+  if (u.includes('americanas')) return { name: 'Americanas', color: '#E60014' };
+  if (u.includes('casasbahia')) return { name: 'Casas Bahia', color: '#0066CC' };
+  if (u.includes('shopee')) return { name: 'Shopee', color: '#EE4D2D' };
+  if (u.includes('aliexpress')) return { name: 'AliExpress', color: '#E43225' };
+  if (u.includes('kabum')) return { name: 'KaBuM!', color: '#FF6500' };
+  return { name: 'Loja Online', color: '#888' };
+}
+
+function detectRoomFromKeywords(name) {
+  const n = (name || '').toLowerCase();
+  const map = {
+    cozinha: ['geladeira', 'fogão', 'cooktop', 'panela', 'talher', 'faca', 'liquidificador', 'batedeira', 'microondas', 'air fryer', 'forno', 'copos', 'prato', 'frigideira', 'cafeteira', 'torradeira'],
+    sala: ['sofá', 'sofa', 'rack', 'tv', 'televisão', 'lustre', 'mesa de centro', 'tapete sala', 'cortina'],
+    quarto: ['cama', 'colchão', 'guarda-roupa', 'armário', 'travesseiro', 'lençol', 'edredom', 'criado-mudo', 'abajur'],
+    banheiro: ['vaso sanitário', 'chuveiro', 'box', 'tapete banheiro', 'toalha', 'espelho banheiro', 'pia banheiro'],
+    lavanderia: ['lava', 'máquina de lavar', 'secadora', 'ferro de passar', 'tábua', 'varal'],
+    escritorio: ['mesa escritório', 'cadeira escritório', 'monitor', 'teclado', 'mouse', 'webcam', 'headset'],
+    garagem: ['carro', 'moto', 'ferrament', 'furadeira', 'compressor'],
+    area_externa: ['churrasqueira', 'jardim', 'piscina', 'rede', 'varanda'],
+    tecnologia: ['alexa', 'smart', 'automação', 'câmera', 'sensor', 'wi-fi', 'roteador'],
+  };
+  for (const [room, keywords] of Object.entries(map)) {
+    if (keywords.some(k => n.includes(k))) return room;
+  }
+  return 'sala';
+}
+
+async function extractProductFromUrl(url) {
+  // Resolve short URLs first
+  let resolvedUrl = url;
+  try { resolvedUrl = await resolveShortUrl(url); } catch {}
+
+  const proxies = [
+    { makeUrl: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, isJson: true },
+    { makeUrl: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`, isJson: false },
+    { makeUrl: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`, isJson: false },
+  ];
+  const urlsToTry = resolvedUrl !== url ? [resolvedUrl, url] : [url];
+
+  for (const tryUrl of urlsToTry) {
+    for (const { makeUrl, isJson } of proxies) {
+      try {
+        const res = await fetch(makeUrl(tryUrl), { signal: AbortSignal.timeout(12000) });
+        if (!res.ok) continue;
+        let html;
+        if (isJson) { const json = await res.json(); html = json.contents || ''; }
+        else { html = await res.text(); }
+        if (!html) continue;
+        const result = parseProductHtml(html, url);
+        if (result && result.name && result.name !== 'Produto') {
+          // If no image from the link, try searching by product name
+          if (!result.image && result.name) {
+            try { result.image = await searchImageByName(result.name) || ''; } catch {}
+          }
+          return result;
+        }
+      } catch { continue; }
+    }
+  }
+  return null;
+}
+
+function parseProductHtml(html, url) {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  const getMeta = (prop) => (doc.querySelector(`meta[property="${prop}"]`) || doc.querySelector(`meta[name="${prop}"]`))?.getAttribute('content') || '';
+
+  let title = getMeta('og:title') || getMeta('twitter:title') || doc.querySelector('title')?.textContent || '';
+  title = title.replace(/\s*[-|–]\s*(Amazon|Mercado Livre|Magazine Luiza|Magalu|KaBuM).*$/i, '').trim();
+  const description = getMeta('og:description') || getMeta('description') || '';
+  const image = getMeta('og:image') || getMeta('twitter:image') || '';
+
+  let price = 0;
+  const priceAmount = getMeta('product:price:amount') || getMeta('og:price:amount');
+  if (priceAmount) price = parseFloat(priceAmount.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+  if (!price) {
+    const m = [...html.matchAll(/R\$\s*([\d.,]+)/g)];
+    if (m.length > 0) price = parseFloat(m[0][1].replace(/\./g, '').replace(',', '.')) || 0;
+  }
+
+  return {
+    name: title.slice(0, 120) || 'Produto',
+    price, description: description.slice(0, 200), image,
+    store: detectStore(url)?.name || '', videoLink: url,
+    room: detectRoomFromKeywords(title + ' ' + description), priority: 2, rating: 0
+  };
+}
+
+/* ─── Image extraction (lightweight - just gets og:image) ─── */
+
+// Resolve shortened URLs to their final destination
+async function resolveShortUrl(url) {
+  // Known shortener patterns - expand to full URLs
+  const shorteners = {
+    'meli.la': true, 'a.co': true, 'amzn.to': true, 'bit.ly': true,
+    'goo.gl': true, 'tinyurl.com': true, 'share.google': true,
+  };
+  try {
+    const hostname = new URL(url).hostname;
+    if (!shorteners[hostname]) return url;
+  } catch { return url; }
+
+  // Use allorigins to follow redirects — it returns the final URL in headers
+  const proxies = [
+    (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+    (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  ];
+  for (const makeUrl of proxies) {
+    try {
+      const res = await fetch(makeUrl(url), { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) continue;
+      // allorigins /get returns JSON with the final content
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const json = await res.json();
+        // The HTML content will contain meta refresh or og tags from final URL
+        if (json.contents) {
+          const doc = new DOMParser().parseFromString(json.contents, 'text/html');
+          // Check if there's a redirect in meta refresh
+          const metaRefresh = doc.querySelector('meta[http-equiv="refresh"]');
+          if (metaRefresh) {
+            const content = metaRefresh.getAttribute('content') || '';
+            const m = content.match(/url=(.+)/i);
+            if (m) return m[1].trim().replace(/['"]/g, '');
+          }
+          // Check canonical link
+          const canonical = doc.querySelector('link[rel="canonical"]');
+          if (canonical) return canonical.getAttribute('href');
+          // If the page has og:image, just return original — we'll extract from this content
+          const ogImg = doc.querySelector('meta[property="og:image"]');
+          if (ogImg) return url; // Content already has what we need
+          // Check og:url for the final destination
+          const ogUrl = doc.querySelector('meta[property="og:url"]');
+          if (ogUrl) return ogUrl.getAttribute('content');
+        }
+        return json.status?.url || url;
+      }
+      // For corsproxy, read the HTML and look for og:url
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const ogUrl = (doc.querySelector('meta[property="og:url"]') || doc.querySelector('link[rel="canonical"]'));
+      if (ogUrl) return ogUrl.getAttribute('content') || ogUrl.getAttribute('href') || url;
+      return url;
+    } catch { continue; }
+  }
+  return url;
+}
+
+async function extractImageFromUrl(url) {
+  // First, try to resolve shortened URLs
+  let resolvedUrl = url;
+  try {
+    resolvedUrl = await resolveShortUrl(url);
+  } catch { /* keep original */ }
+
+  const proxies = [
+    // allorigins /get returns JSON with HTML content (follows redirects)
+    { makeUrl: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, isJson: true },
+    // allorigins /raw returns raw HTML
+    { makeUrl: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`, isJson: false },
+    // corsproxy
+    { makeUrl: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`, isJson: false },
+  ];
+
+  // Try with resolved URL first, then original if different
+  const urlsToTry = resolvedUrl !== url ? [resolvedUrl, url] : [url];
+
+  for (const tryUrl of urlsToTry) {
+    for (const { makeUrl, isJson } of proxies) {
+      try {
+        const res = await fetch(makeUrl(tryUrl), { signal: AbortSignal.timeout(10000) });
+        if (!res.ok) continue;
+
+        let html;
+        if (isJson) {
+          const json = await res.json();
+          html = json.contents || '';
+        } else {
+          html = await res.text();
+        }
+
+        if (!html) continue;
+
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const getMeta = (prop) => (doc.querySelector(`meta[property="${prop}"]`) || doc.querySelector(`meta[name="${prop}"]`))?.getAttribute('content') || '';
+
+        const img = getMeta('og:image') || getMeta('twitter:image') || '';
+        if (img && img.startsWith('http')) return img;
+
+        // Try to find product images in common patterns
+        const imgEl = doc.querySelector('img.a-dynamic-image') // Amazon
+          || doc.querySelector('img[data-zoom]') // ML
+          || doc.querySelector('.gallery img')
+          || doc.querySelector('picture img[src*="http"]');
+        if (imgEl) {
+          const src = imgEl.getAttribute('src') || imgEl.getAttribute('data-src') || '';
+          if (src && src.startsWith('http')) return src;
+        }
+      } catch { continue; }
+    }
+  }
+  return null;
+}
+
+async function searchImageByName(productName) {
+  if (!productName || productName.length < 3) return null;
+  // Clean up the name for better search results
+  const query = productName.replace(/[^\w\sÀ-ú]/g, '').trim();
+  if (!query) return null;
+
+  const proxies = [
+    { makeUrl: (q) => `https://api.allorigins.win/get?url=${encodeURIComponent(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(q + ' produto')}`)}`, isJson: true },
+    { makeUrl: (q) => `https://corsproxy.io/?${encodeURIComponent(`https://www.google.com/search?tbm=isch&q=${encodeURIComponent(q + ' produto')}`)}`, isJson: false },
+  ];
+
+  for (const { makeUrl, isJson } of proxies) {
+    try {
+      const res = await fetch(makeUrl(query), { signal: AbortSignal.timeout(12000) });
+      if (!res.ok) continue;
+
+      let html;
+      if (isJson) {
+        const json = await res.json();
+        html = json.contents || '';
+      } else {
+        html = await res.text();
+      }
+      if (!html) continue;
+
+      // Extract image URLs from Google Images results
+      // Google embeds image URLs in data attributes and script tags
+      const imgMatches = [];
+
+      // Pattern 1: Direct image URLs in the HTML (data-src, data-iurl, etc.)
+      const dataUrlRegex = /(?:data-src|data-iurl|data-ou|imgurl)="(https?:\/\/[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/gi;
+      let match;
+      while ((match = dataUrlRegex.exec(html)) !== null) {
+        if (!match[1].includes('google') && !match[1].includes('gstatic')) {
+          imgMatches.push(match[1]);
+        }
+      }
+
+      // Pattern 2: Image URLs in JSON-like structures within scripts
+      const jsonImgRegex = /\["(https?:\/\/[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)",\s*\d+,\s*\d+\]/gi;
+      while ((match = jsonImgRegex.exec(html)) !== null) {
+        const url = match[1].replace(/\\u003d/g, '=').replace(/\\u0026/g, '&');
+        if (!url.includes('google') && !url.includes('gstatic') && !url.includes('favicon')) {
+          imgMatches.push(url);
+        }
+      }
+
+      // Pattern 3: og:image or similar meta
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const ogImg = doc.querySelector('meta[property="og:image"]')?.getAttribute('content');
+      if (ogImg && ogImg.startsWith('http')) imgMatches.push(ogImg);
+
+      // Return the first valid-looking product image (prefer larger ones)
+      for (const img of imgMatches) {
+        if (img.startsWith('http') && img.length > 30) return img;
+      }
+    } catch { continue; }
+  }
+
+  // Fallback: try DuckDuckGo
+  try {
+    const ddgUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(`https://duckduckgo.com/?q=${encodeURIComponent(query)}&iax=images&ia=images`)}`;
+    const res = await fetch(ddgUrl, { signal: AbortSignal.timeout(10000) });
+    if (res.ok) {
+      const json = await res.json();
+      const html = json.contents || '';
+      const imgRegex = /vqd=[^&]*&.*?(?:thumbnail|image)":"(https?:\/\/[^"]+)"/gi;
+      const match = imgRegex.exec(html);
+      if (match && match[1].startsWith('http')) return match[1];
+    }
+  } catch { /* skip */ }
+
+  return null;
+}
+
+/* ─── Animation ─── */
+const fadeUp = { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -8 }, transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] } };
+const modalV = { initial: { opacity: 0, scale: 0.94, y: 16 }, animate: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] } }, exit: { opacity: 0, scale: 0.96, y: 8, transition: { duration: 0.2 } } };
+const cardV = { initial: { opacity: 0, y: 16, scale: 0.97 }, animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] } }, exit: { opacity: 0, scale: 0.95, transition: { duration: 0.15 } } };
+
+/* ─── Animated Icon Component ─── */
+function AIcon({ name, size = 16, color, className = '' }) {
+  const Comp = ALL_ICONS[name] || Package;
   return (
-    <span className={`anim-icon ${animate} ${className}`}>
-      <Icon size={size} color={color} strokeWidth={1.8} />
-    </span>
+    <motion.span className={`aicon ${className}`} whileHover={{ scale: 1.15, rotate: 5 }} whileTap={{ scale: 0.9 }} transition={{ type: 'spring', stiffness: 400, damping: 17 }}>
+      <Comp size={size} color={color} strokeWidth={1.8} />
+    </motion.span>
   );
 }
 
-function RoomIcon({ roomId, size = 16, color }) {
-  const IconComp = ROOM_ICONS[roomId] || Home;
-  return <AnimIcon icon={IconComp} size={size} color={color} />;
+function RoomIcon({ room, size = 16, color }) {
+  const iconKey = room?.iconKey || 'Home';
+  return <AIcon name={iconKey} size={size} color={color || room?.color} />;
 }
 
-const fmt = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
-const genId = () => Math.random().toString(36).substr(2, 9);
-
+/* ─── Main App ─── */
 export default function App() {
   const [data, setData] = useState(() => loadData() || DEFAULT_DATA);
+  const [settings, setSettings] = useState(() => loadSettings() || DEFAULT_SETTINGS);
   const [activeRoom, setActiveRoom] = useState('all');
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -144,322 +507,815 @@ export default function App() {
   const [showCashModal, setShowCashModal] = useState(null);
   const [cashAmount, setCashAmount] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showRoomModal, setShowRoomModal] = useState(false);
-  const [newRoom, setNewRoom] = useState({ name: '', iconKey: '' });
   const [viewMode, setViewMode] = useState('grid');
   const [sortBy, setSortBy] = useState('priority');
   const [syncStatus, setSyncStatus] = useState('idle');
-  const [theme, setTheme] = useState(() => localStorage.getItem('nossa_casa_theme') || 'dark');
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
-  
-  const isFirstRender = useRef(true);
-  const cloudVersionRef = useRef(data.version || 0);
-  const writeTimerRef = useRef(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showUrlModal, setShowUrlModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [editCategory, setEditCategory] = useState(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [lightboxImg, setLightboxImg] = useState(null);
+  const [fetchingImages, setFetchingImages] = useState(false);
+  const [fetchProgress, setFetchProgress] = useState({ done: 0, total: 0 });
 
-  // Stats
+  const isFirstRender = useRef(true);
+  const imagesFetchedRef = useRef(false);
+  const writeTimerRef = useRef(null);
+  const isWritingRef = useRef(false);
+
   const items = data.items || [];
+  const rooms = data.rooms || DEFAULT_ROOMS;
   const purchasedCount = items.filter(i => i.purchased).length;
   const totalItems = items.length;
   const progressPct = totalItems > 0 ? Math.round((purchasedCount / totalItems) * 100) : 0;
   const totalSpent = items.filter(i => i.purchased).reduce((s, i) => s + (i.price || 0), 0);
   const totalPending = items.filter(i => !i.purchased).reduce((s, i) => s + (i.price || 0), 0);
   const totalCash = (data.cashBox?.dele || 0) + (data.cashBox?.dela || 0) + (data.cashBox?.outros || 0) + (data.cashBox?.reserva || 0);
+  const theme = settings.theme;
 
-  const isWritingRef = useRef(false);
-  const lastInteractionRef = useRef(Date.now());
+  const updateSettings = useCallback((updates) => {
+    setSettings(prev => { const next = { ...prev, ...updates }; saveSettings(next); return next; });
+  }, []);
 
-  // Logic: Write to Cloud
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
     saveData(data);
-    localStorage.setItem('nossa_casa_theme', theme);
-    
     if (writeTimerRef.current) clearTimeout(writeTimerRef.current);
     writeTimerRef.current = setTimeout(async () => {
       setSyncStatus('syncing');
       isWritingRef.current = true;
       const ok = await cloudWrite(data);
-      if (ok) {
-        console.log('✅ Gravação enviada com sucesso');
-        setSyncStatus('ok');
-      } else {
-        setSyncStatus('err');
-      }
+      setSyncStatus(ok ? 'ok' : 'err');
       setTimeout(() => { isWritingRef.current = false; }, 3000);
     }, 2000);
   }, [data]);
 
-  // Firebase Realtime Listener
   useEffect(() => {
     if (!db) return;
-    
     const dbRef = ref(db, 'shared-data');
-    const unsubscribe = onValue(dbRef, (snapshot) => {
+    const unsub = onValue(dbRef, (snap) => {
       if (isWritingRef.current) return;
-
       try {
-        const remote = snapshot.val();
-        if (!remote || !remote.version) return;
-        
-        setData(current => {
-          if (remote.version > (current.version || 0)) {
-            // PROTEÇÃO: Se a nuvem estiver vazia ou com poucos itens, não apagar o local
-            if (!remote.items || remote.items.length < 10) {
-              console.warn('🛡️ Sync ignorado: Nuvem incompleta.');
-              return current;
-            }
-
-            console.log('📥 Cloud Sync Applied:', remote.version);
-            const newData = convertCloudData(remote);
-            return newData || current;
-          }
-          return current;
-        });
-      } catch (err) { console.error('Sync error:', err); }
+        const remote = snap.val();
+        if (!remote?.version) return;
+        setData(cur => remote.version > (cur.version || 0) ? (convertCloudData(remote) || cur) : cur);
+      } catch (e) { console.error('Sync err:', e); }
     });
-
-    return () => unsubscribe();
+    return () => unsub();
   }, []);
+
+  const [vIdx, setVIdx] = useState(0);
+  useEffect(() => { const t = setInterval(() => setVIdx(p => (p + 1) % VERSES.length), 15000); return () => clearInterval(t); }, []);
 
   const filteredItems = useMemo(() => {
     let list = items;
     if (activeRoom !== 'all') list = list.filter(i => i.room === activeRoom);
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter(i => i.name.toLowerCase().includes(q) || (i.store && i.store.toLowerCase().includes(q)));
-    }
+    if (search) { const q = search.toLowerCase(); list = list.filter(i => i.name.toLowerCase().includes(q) || (i.store && i.store.toLowerCase().includes(q))); }
+    if (!settings.showPurchased) list = list.filter(i => !i.purchased);
     return [...list].sort((a, b) => {
+      if (a.purchased !== b.purchased) return a.purchased ? 1 : -1;
       if (sortBy === 'priority') return (a.priority || 3) - (b.priority || 3);
       if (sortBy === 'price') return (b.price || 0) - (a.price || 0);
+      if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
       return a.name.localeCompare(b.name);
     });
-  }, [items, activeRoom, search, sortBy]);
+  }, [items, activeRoom, search, sortBy, settings.showPurchased]);
 
-  const smartRecommendations = useMemo(() => {
-    const recs = [];
-    if (!items.find(i => i.name.toLowerCase().includes('alexa'))) {
-      recs.push({ title: 'Casa Inteligente', desc: 'Considere adicionar uma Alexa para automação por voz.', priority: 3 });
-    }
-    const urgent = items.filter(i => i.priority === 1 && !i.purchased);
-    if (urgent.length > 0) {
-      recs.push({ title: 'Urgente', desc: `Você tem ${urgent.length} itens essenciais pendentes.`, priority: 1 });
-    }
-    return recs;
-  }, [items]);
+  const suggestions = useMemo(() => {
+    const room = activeRoom === 'all' ? null : activeRoom;
+    const roomSuggestions = room ? (PRODUCT_SUGGESTIONS[room] || []) : Object.values(PRODUCT_SUGGESTIONS).flat();
+    const existingNames = new Set(items.map(i => i.name.toLowerCase()));
+    return roomSuggestions.filter(s => !existingNames.has(s.name.toLowerCase())).slice(0, 8);
+  }, [items, activeRoom]);
 
   const updateData = useCallback((fn) => {
-    setData(prev => {
-      const copy = JSON.parse(JSON.stringify(prev));
-      const next = fn(copy);
-      next.version = Date.now(); // Stamp local update immediately
-      return next;
+    setData(prev => { const copy = JSON.parse(JSON.stringify(prev)); const next = fn(copy); next.version = Date.now(); return next; });
+  }, []);
+
+  const handleToggle = (id) => updateData(d => { const i = d.items.find(x => x.id === id); if (i) i.purchased = !i.purchased; return d; });
+  const handleDelete = (id) => updateData(d => { d.items = d.items.filter(x => x.id !== id); return d; });
+
+  const handleSave = (val) => {
+    updateData(d => {
+      if (val.id) { const i = d.items.findIndex(x => x.id === val.id); if (i >= 0) d.items[i] = { ...d.items[i], ...val }; }
+      else d.items.push({ ...val, id: genId(), purchased: false });
+      return d;
     });
-  }, []);
+    setShowModal(false); setEditItem(null);
+  };
 
-  const handleTogglePurchased = (id) => updateData(d => {
-    const i = d.items.find(x => x.id === id); if (i) i.purchased = !i.purchased; return d;
-  });
+  const handleAddSuggestion = (sug) => {
+    const room = activeRoom === 'all' ? detectRoomFromKeywords(sug.name) : activeRoom;
+    updateData(d => { d.items.push({ ...sug, id: genId(), room, purchased: false, rating: 0 }); return d; });
+  };
 
-  const [vIdx, setVIdx] = useState(0);
-  const [vFade, setVFade] = useState(true);
+  // Auto-fetch images for items with links but no image
+  const handleFetchAllImages = useCallback(async () => {
+    const needImage = items.filter(i => i.videoLink && !i.image);
+    if (needImage.length === 0) return;
+    setFetchingImages(true);
+    setFetchProgress({ done: 0, total: needImage.length });
+
+    const results = {};
+    for (let idx = 0; idx < needImage.length; idx++) {
+      const item = needImage[idx];
+      try {
+        // Priority 1: try to extract image from the product link
+        let img = await extractImageFromUrl(item.videoLink);
+        // Fallback: search by product name if link extraction failed
+        if (!img && item.name) {
+          img = await searchImageByName(item.name);
+        }
+        if (img) results[item.id] = img;
+      } catch { /* skip */ }
+      setFetchProgress({ done: idx + 1, total: needImage.length });
+    }
+
+    if (Object.keys(results).length > 0) {
+      updateData(d => {
+        for (const [id, img] of Object.entries(results)) {
+          const item = d.items.find(x => x.id === id);
+          if (item) {
+            item.image = img;
+            if (!item.store) {
+              const store = detectStore(item.videoLink);
+              if (store) item.store = store.name;
+            }
+          }
+        }
+        return d;
+      });
+    }
+    setFetchingImages(false);
+  }, [items, updateData]);
+
+  // Auto-fetch on first load
   useEffect(() => {
-    const t = setInterval(() => {
-      setVFade(false);
-      setTimeout(() => { setVIdx(p => (p + 1) % VERSES.length); setVFade(true); }, 500);
-    }, 15000);
-    return () => clearInterval(t);
-  }, []);
+    if (imagesFetchedRef.current) return;
+    const needImage = items.filter(i => i.videoLink && !i.image);
+    if (needImage.length > 0) {
+      imagesFetchedRef.current = true;
+      // Small delay to let the UI render first
+      const t = setTimeout(() => handleFetchAllImages(), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [items, handleFetchAllImages]);
+
+  const handleSaveCategory = (cat) => {
+    updateData(d => {
+      if (cat.isNew) {
+        const id = cat.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+        d.rooms.push({ id, name: cat.name, iconKey: cat.iconKey, color: cat.color });
+      } else {
+        const idx = d.rooms.findIndex(r => r.id === cat.id);
+        if (idx >= 0) d.rooms[idx] = { ...d.rooms[idx], name: cat.name, iconKey: cat.iconKey, color: cat.color };
+      }
+      return d;
+    });
+    setShowCategoryModal(false); setEditCategory(null);
+  };
+
+  const handleDeleteCategory = (id) => {
+    updateData(d => {
+      d.rooms = d.rooms.filter(r => r.id !== id);
+      d.items = d.items.map(i => i.room === id ? { ...i, room: 'sala' } : i);
+      return d;
+    });
+    setShowCategoryModal(false); setEditCategory(null);
+  };
+
+  const handleExport = () => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = `nossa-casa-backup-${new Date().toISOString().slice(0,10)}.json`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+
+  const handleImport = () => {
+    const input = document.createElement('input'); input.type = 'file'; input.accept = '.json';
+    input.onchange = (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => { try { const d = JSON.parse(ev.target.result); if (d.items) setData({ ...d, version: Date.now() }); } catch { alert('Arquivo inválido.'); } };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  const activeRoomData = rooms.find(r => r.id === activeRoom);
 
   return (
-    <div className={`app-layout ${theme === 'light' ? 'light-theme' : ''}`}>
-      <div className="mobile-header">
-        <button className="mobile-menu-btn" onClick={() => setSidebarOpen(true)}><Menu size={20} /></button>
-        <span className="logo"><AnimIcon icon={Home} size={18} color="#f59e0b" animate="pulse" /> Nossa Casa</span>
-      </div>
-
-      {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
-
-      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div className="nav-bottom-tabs">
-          <button className={`tab-btn ${activeRoom === 'all' ? 'active' : ''}`} onClick={() => setActiveRoom('all')}><Home size={18} /><span>Início</span></button>
-          <button className="tab-btn" onClick={() => setSidebarOpen(true)}><Menu size={18} /><span>Cômodos</span></button>
-          <button className="tab-btn" onClick={() => { setEditItem(null); setShowModal(true); }}><Plus size={20} className="tab-plus" /><span>Novo</span></button>
-          <button className={`tab-btn ${theme === 'light' ? 'active' : ''}`} onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}><Sparkles size={18} /><span>Tema</span></button>
-          <button className="tab-btn" onClick={() => setShowSettingsModal(true)}><Settings size={18} /><span>Configs</span></button>
-        </div>
-
-        <div className="logo"><AnimIcon icon={Home} size={20} color="#f59e0b" animate="pulse" /> Nossa Casa</div>
-        <div className="logo-sub">Planejando o nosso futuro lar.</div>
-
-        <div className="verse-banner glass-sm">
-          <BookOpen size={12} className="verse-icon" />
-          <div className={`verse-content ${vFade ? 'fade-in' : 'fade-out'}`}>
-            <p className="verse-text">"{VERSES[vIdx].text}"</p>
-            <p className="verse-ref">{VERSES[vIdx].ref}</p>
-          </div>
-        </div>
-
-        <div className="nav-section">CATEGORIAS</div>
-        <button className={`nav-btn ${activeRoom === 'all' ? 'active' : ''}`} onClick={() => { setActiveRoom('all'); setSidebarOpen(false); }}>
-          <AnimIcon icon={Grid3X3} size={15} /> Todos os Itens
-          <span className="nav-count">{totalItems}</span>
+    <div className={`app-root ${theme}`} data-theme={theme}>
+      {/* Mobile Bottom Nav */}
+      <nav className="bottom-nav">
+        <button className={`bnav-btn ${!showUrlModal && !showSettings && activeRoom === 'all' ? 'active' : ''}`} onClick={() => { setActiveRoom('all'); setSidebarOpen(false); }}>
+          <Home size={20} /><span>Início</span>
         </button>
-        {data.rooms.map(r => (
-          <button key={r.id} className={`nav-btn ${activeRoom === r.id ? 'active' : ''}`} onClick={() => { setActiveRoom(r.id); setSidebarOpen(false); }}>
-            <RoomIcon roomId={r.iconKey || r.id} size={15} /> {r.name}
-            <span className="nav-count">{items.filter(i => i.room === r.id).length}</span>
-          </button>
-        ))}
+        <button className="bnav-btn" onClick={() => setShowUrlModal(true)}>
+          <Link2 size={20} /><span>Link</span>
+        </button>
+        <button className="bnav-btn bnav-center" onClick={() => { setEditItem(null); setShowModal(true); }}>
+          <div className="bnav-plus-ring"><Plus size={22} /></div>
+        </button>
+        <button className="bnav-btn" onClick={() => setShowSuggestions(true)}>
+          <Lightbulb size={20} /><span>Ideias</span>
+        </button>
+        <button className="bnav-btn" onClick={() => setShowSettings(true)}>
+          <SlidersHorizontal size={20} /><span>Config</span>
+        </button>
+      </nav>
 
-        <div style={{ marginTop: 'auto', paddingTop: 16, borderTop: '1px solid rgba(255,255,255,.05)' }}>
-          <div className="sync-indicator">
-            <div className={`sync-dot ${syncStatus}`}></div>
-            <span>{syncStatus === 'syncing' ? 'Sincronizando...' : syncStatus === 'err' ? 'Erro na nuvem' : 'Nuvem Atualizada'}</span>
-          </div>
-          <button className="nav-btn" onClick={() => setShowSettingsModal(true)} style={{ color: '#666' }}>
-            <Settings size={14} /> Configurações
+      {/* Sidebar Backdrop */}
+      <AnimatePresence>{sidebarOpen && <motion.div className="sidebar-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSidebarOpen(false)} />}</AnimatePresence>
+
+      {/* Sidebar */}
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <div className="sb-inner">
+          <div className="sb-logo"><Home size={18} strokeWidth={2.5} /> Nossa Casa</div>
+          <p className="sb-sub">Planejando o nosso lar</p>
+
+          <AnimatePresence mode="wait">
+            <motion.div className="verse-card glass" key={vIdx} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.5 }}>
+              <BookOpen size={12} className="verse-ico" />
+              <p className="verse-txt">"{VERSES[vIdx].text}"</p>
+              <p className="verse-ref">{VERSES[vIdx].ref}</p>
+            </motion.div>
+          </AnimatePresence>
+
+          <div className="sb-label">CATEGORIAS</div>
+          <button className={`sb-nav ${activeRoom === 'all' ? 'active' : ''}`} onClick={() => { setActiveRoom('all'); setSidebarOpen(false); }}>
+            <Grid3X3 size={15} /> <span>Todos</span> <span className="sb-badge">{totalItems}</span>
           </button>
+          {rooms.map(r => (
+            <button key={r.id} className={`sb-nav ${activeRoom === r.id ? 'active' : ''}`} onClick={() => { setActiveRoom(r.id); setSidebarOpen(false); }}
+              onContextMenu={e => { e.preventDefault(); setEditCategory(r); setShowCategoryModal(true); }}>
+              <RoomIcon room={r} size={15} /> <span>{r.name}</span>
+              <span className="sb-badge">{items.filter(i => i.room === r.id).length}</span>
+            </button>
+          ))}
+          <button className="sb-nav sb-add-cat" onClick={() => { setEditCategory(null); setShowCategoryModal(true); }}>
+            <Plus size={14} /> <span>Nova Categoria</span>
+          </button>
+
+          <div className="sb-footer">
+            <div className="sync-pill glass">
+              <div className={`sync-dot ${syncStatus === 'syncing' ? 'syncing' : syncStatus === 'err' ? 'err' : 'ok'}`} />
+              <span>{syncStatus === 'syncing' ? 'Sincronizando...' : syncStatus === 'err' ? 'Erro' : 'Sincronizado'}</span>
+            </div>
+            <button className="sb-nav" onClick={() => setShowSettings(true)}><Settings size={15} /> <span>Configurações</span></button>
+          </div>
         </div>
       </aside>
 
-      <main className="main-content">
-        <div className="page-header animate-in">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
-            <div>
-              <h1 className="page-title">A Nossa Casa <AnimIcon icon={Sparkles} size={18} color="#f59e0b" animate="float" /></h1>
-              <p className="page-desc">Construindo o nosso lar com planos e muito amor.</p>
-            </div>
-            <div className="summary-pill glass-sm">
-              <div className="pill-item"><span className="pill-label">Total Gasto</span><span className="pill-value">{fmt(totalSpent)}</span></div>
-              <div className="pill-divider" /><div className="pill-item"><span className="pill-label">Pendente</span><span className="pill-value" style={{ color: '#ef4444' }}>{fmt(totalPending)}</span></div>
-            </div>
+      {/* Main */}
+      <main className="main">
+        <header className="m-header">
+          <button className="icon-btn glass" onClick={() => setSidebarOpen(true)}><Menu size={20} /></button>
+          <div className="m-logo"><Home size={16} /> Nossa Casa</div>
+          <button className="icon-btn glass" onClick={() => updateSettings({ theme: theme === 'dark' ? 'light' : 'dark' })}>
+            <motion.div key={theme} initial={{ rotate: -30, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} transition={{ duration: 0.3 }}>
+              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            </motion.div>
+          </button>
+        </header>
+
+        {/* Mobile Room Chips */}
+        <div className="m-rooms">
+          <div className="chips-scroll">
+            <button className={`chip ${activeRoom === 'all' ? 'active' : ''}`} onClick={() => setActiveRoom('all')}>Tudo</button>
+            {rooms.map(r => (
+              <button key={r.id} className={`chip ${activeRoom === r.id ? 'active' : ''}`} style={activeRoom === r.id ? { background: r.color, borderColor: r.color } : {}} onClick={() => setActiveRoom(r.id)}>
+                {r.name}
+              </button>
+            ))}
           </div>
         </div>
 
-        {smartRecommendations.length > 0 && (
-          <div className="dashboard-widgets animate-in">
-            <div className="section-header"><div className="section-icon"><AnimIcon icon={Bot} size={15} color="#f59e0b" animate="pulse" /></div><span className="section-title">SUGESTÕES</span><div className="section-line"></div></div>
-            <div className="widgets-grid">{smartRecommendations.map((rec, i) => (<div key={i} className={`widget-card p-${rec.priority}`}><div className="widget-icon">{rec.priority === 1 ? <AlertTriangle size={14} /> : <Zap size={14} />}</div><div className="widget-content"><div className="widget-title">{rec.title}</div><div className="widget-desc">{rec.desc}</div></div></div>))}</div>
+        {/* Header */}
+        <motion.div className="pg-header" {...fadeUp}>
+          <div className="pg-top">
+            <div>
+              <h1 className="pg-title">
+                {activeRoom === 'all' ? 'Nossa Casa' : activeRoomData?.name || 'Nossa Casa'}
+                <motion.span animate={{ rotate: [0, 10, -10, 0] }} transition={{ repeat: Infinity, duration: 3, repeatDelay: 2 }}>
+                  <Sparkles size={18} className="sparkle" />
+                </motion.span>
+              </h1>
+              <p className="pg-sub">Construindo o nosso lar com amor</p>
+            </div>
+            <div className="pg-actions desktop-only">
+              <button className="icon-btn glass" onClick={() => updateSettings({ theme: theme === 'dark' ? 'light' : 'dark' })}>
+                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+              </button>
+              <button className="icon-btn glass" onClick={() => setShowSettings(true)}><Settings size={18} /></button>
+            </div>
           </div>
+
+          <div className="stats-row">
+            <div className="stat-card glass">
+              <div className="stat-label">Progresso</div>
+              <div className="stat-val accent">{purchasedCount}/{totalItems}</div>
+              <div className="mini-bar"><div className="mini-fill" style={{ width: `${progressPct}%` }} /></div>
+            </div>
+            <div className="stat-card glass">
+              <div className="stat-label">Investido</div>
+              <div className="stat-val green">{fmt(totalSpent)}</div>
+            </div>
+            <div className="stat-card glass">
+              <div className="stat-label">Pendente</div>
+              <div className="stat-val red">{fmt(totalPending)}</div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Cash Boxes */}
+        <motion.div className="cash-section" {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.05 }}>
+          <div className="sec-head">
+            <motion.div className="sec-ico" whileHover={{ rotate: 15 }}><PiggyBank size={14} /></motion.div>
+            <span className="sec-title">CAIXINHAS</span><div className="sec-line" />
+          </div>
+          <div className="cash-grid">
+            {[
+              { key: 'dele', label: 'Dele', icon: Wallet, color: '#3b82f6' },
+              { key: 'dela', label: 'Dela', icon: Heart, color: '#ec4899' },
+              { key: 'outros', label: 'Outros', icon: Gift, color: '#a78bfa' },
+              { key: 'reserva', label: 'Reserva', icon: Landmark, color: '#06b6d4' },
+            ].map((box, i) => (
+              <motion.div key={box.key} className="cash-card glass" whileHover={{ y: -3, scale: 1.02 }} whileTap={{ scale: 0.98 }} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 + 0.1 }}
+                onClick={() => { setCashAmount(String(data.cashBox[box.key] || '')); setShowCashModal(box.key); }}>
+                <div className="cash-ico" style={{ color: box.color, background: `${box.color}18` }}><box.icon size={14} /></div>
+                <div className="cash-lbl">{box.label}</div>
+                <div className="cash-val">{fmt(data.cashBox[box.key] || 0)}</div>
+              </motion.div>
+            ))}
+            <motion.div className="cash-card glass cash-total" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+              <div className="cash-ico accent-ico"><CircleDollarSign size={14} /></div>
+              <div className="cash-lbl">Total Disponível</div>
+              <div className="cash-val accent">{fmt(totalCash)}</div>
+              <div className="mini-bar mt-6"><div className="mini-fill" style={{ width: `${progressPct}%` }} /></div>
+              <div className="cash-pct">{progressPct}% concluído</div>
+            </motion.div>
+          </div>
+        </motion.div>
+
+        {/* Toolbar */}
+        <motion.div className="toolbar" {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.1 }}>
+          <div className="search-box glass">
+            <Search size={16} />
+            <input placeholder="Buscar itens..." value={search} onChange={e => setSearch(e.target.value)} />
+            {search && <button className="search-x" onClick={() => setSearch('')}><X size={14} /></button>}
+          </div>
+          <div className="tb-actions">
+            <select className="tb-select glass" value={sortBy} onChange={e => setSortBy(e.target.value)}>
+              <option value="priority">Prioridade</option>
+              <option value="price">Maior Preço</option>
+              <option value="rating">Avaliação</option>
+              <option value="name">Nome (A-Z)</option>
+            </select>
+            <div className="view-tog glass">
+              <button className={viewMode === 'grid' ? 'active' : ''} onClick={() => setViewMode('grid')}><Grid3X3 size={14} /></button>
+              <button className={viewMode === 'list' ? 'active' : ''} onClick={() => setViewMode('list')}><List size={14} /></button>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Action Buttons */}
+        <motion.div className="action-row" {...fadeUp} transition={{ ...fadeUp.transition, delay: 0.12 }}>
+          <button className="action-btn glass" onClick={() => setShowUrlModal(true)}>
+            <Link2 size={15} /> <span>Importar por Link</span>
+          </button>
+          <button className="action-btn glass" onClick={() => setShowSuggestions(true)}>
+            <Lightbulb size={15} /> <span>Sugestões</span>
+            {suggestions.length > 0 && <span className="action-badge">{suggestions.length}</span>}
+          </button>
+          {items.some(i => i.videoLink && !i.image) && (
+            <button className="action-btn glass" onClick={handleFetchAllImages} disabled={fetchingImages}>
+              {fetchingImages ? (
+                <><motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}><Loader2 size={15} /></motion.span> <span>Buscando imagens... ({fetchProgress.done}/{fetchProgress.total})</span></>
+              ) : (
+                <><ImageIcon size={15} /> <span>Buscar Imagens dos Links</span><span className="action-badge">{items.filter(i => i.videoLink && !i.image).length}</span></>
+              )}
+            </button>
+          )}
+        </motion.div>
+
+        {/* Image fetch progress bar */}
+        {fetchingImages && (
+          <motion.div className="fetch-progress" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+            <div className="fetch-bar"><div className="fetch-fill" style={{ width: `${fetchProgress.total > 0 ? (fetchProgress.done / fetchProgress.total) * 100 : 0}%` }} /></div>
+            <span className="fetch-text">Buscando imagens dos produtos... {fetchProgress.done} de {fetchProgress.total}</span>
+          </motion.div>
         )}
 
-        <div className="cash-grid animate-in" style={{ animationDelay: '.1s' }}>
-          {[
-            { key: 'dele', label: 'Caixa Dele', icon: Wallet, color: '#3b82f6' },{ key: 'dela', label: 'Caixa Dela', icon: Heart, color: '#ec4899' },
-            { key: 'outros', label: 'Outros', icon: Gift, color: '#8b5cf6' },{ key: 'reserva', label: 'Reserva', icon: Landmark, color: '#06b6d4' }
-          ].map(box => (
-            <div key={box.key} className="cash-card">
-              <div className="cash-label" style={{ color: box.color }}><box.icon size={12} /> {box.label}</div>
-              <div className="cash-value">{fmt(data.cashBox[box.key] || 0)}</div>
-              <button className="cash-btn" onClick={() => { 
-                setCashAmount(data.cashBox[box.key] || '');
-                setShowCashModal(box.key); 
-              }}>+ Atualizar</button>
-            </div>
-          ))}
-          <div className="cash-card total">
-            <div className="cash-label"><CircleDollarSign size={13} color="#f59e0b" /> Total</div>
-            <div className="cash-value">{fmt(totalCash)}</div>
-            <div className="progress-bar"><div className="progress-fill" style={{ width: `${progressPct}%` }} /></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#555' }}>
-              <span>{purchasedCount}/{totalItems} comprados</span><span>{progressPct}%</span>
-            </div>
-          </div>
+        {/* Items */}
+        <div className={`items-${viewMode}`}>
+          <AnimatePresence mode="popLayout">
+            {filteredItems.length === 0 ? (
+              <motion.div className="empty glass" {...fadeUp}>
+                <Package size={48} strokeWidth={1} />
+                <p className="empty-title">Nenhum item encontrado</p>
+                <p className="empty-sub">Adicione itens ou importe por link</p>
+                <button className="btn-accent" onClick={() => { setEditItem(null); setShowModal(true); }}><Plus size={16} /> Adicionar</button>
+              </motion.div>
+            ) : filteredItems.map(item => {
+              const roomData = rooms.find(r => r.id === item.room);
+              return (
+                <motion.div key={item.id} className={`card ${item.purchased ? 'purchased' : ''} ${viewMode}`} variants={cardV} initial="initial" animate="animate" exit="exit" layout
+                  onClick={() => { setEditItem(item); setShowModal(true); }} whileHover={viewMode === 'grid' ? { y: -4, scale: 1.01 } : { x: 2 }}>
+                  {viewMode === 'grid' ? (
+                    <>
+                      <div className="card-vis">
+                        {item.image ? (
+                          <>
+                            <img src={item.image} alt="" className="card-img" loading="lazy" />
+                            <button className="card-expand" onClick={e => { e.stopPropagation(); setLightboxImg({ src: item.image, name: item.name, price: item.price, store: item.store, link: item.videoLink }); }} title="Ver imagem">
+                              <Maximize2 size={14} />
+                            </button>
+                          </>
+                        ) : <div className="card-ph"><RoomIcon room={roomData} size={28} color="var(--text-muted)" /></div>}
+                        <div className="card-grad" />
+                        {item.purchased && <div className="card-done-ov"><motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 300 }}><CheckCircle2 size={32} color="#22c55e" /></motion.div></div>}
+                        <div className={`card-pri p${item.priority || 3}`}>
+                          {item.priority === 1 ? <AlertTriangle size={10} /> : item.priority === 2 ? <Zap size={10} /> : <Lightbulb size={10} />}
+                        </div>
+                        {item.videoLink && !item.purchased && (
+                          <a href={item.videoLink} target="_blank" rel="noopener noreferrer" className="card-link" onClick={e => e.stopPropagation()}>
+                            <ExternalLink size={10} /> Ver
+                          </a>
+                        )}
+                        {!item.purchased && item.price > 0 && item.price <= totalCash && (
+                          <div className="card-afford"><Sparkles size={9} /> Pode comprar</div>
+                        )}
+                      </div>
+                      <div className="card-body">
+                        <div className="card-room-tag" style={{ color: roomData?.color || '#888' }}>
+                          <RoomIcon room={roomData} size={10} color={roomData?.color} /> {roomData?.name}
+                        </div>
+                        <div className={`card-name ${item.purchased ? 'done' : ''}`}>{item.name}</div>
+                        {item.rating > 0 && <div className="card-stars">{Array.from({ length: 5 }, (_, i) => <Star key={i} size={10} fill={i < item.rating ? '#f59e0b' : 'transparent'} color={i < item.rating ? '#f59e0b' : '#333'} />)}</div>}
+                        <div className="card-foot">
+                          <div className="card-price">{settings.showPrices ? fmt(item.price || 0) : '****'}</div>
+                          <button className={`card-chk ${item.purchased ? 'done' : ''}`} onClick={e => { e.stopPropagation(); handleToggle(item.id); }}>
+                            <Check size={14} strokeWidth={3} />
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <button className={`card-chk ${item.purchased ? 'done' : ''}`} onClick={e => { e.stopPropagation(); handleToggle(item.id); }}><Check size={14} strokeWidth={3} /></button>
+                      <div className="list-ico" style={{ background: `${roomData?.color || '#888'}18`, color: roomData?.color }}>
+                        <RoomIcon room={roomData} size={14} color={roomData?.color} />
+                      </div>
+                      <div className="list-mid">
+                        <div className={`card-name ${item.purchased ? 'done' : ''}`}>{item.name}</div>
+                        <div className="list-meta">{roomData?.name}{item.store && ` · ${item.store}`}</div>
+                      </div>
+                      <div className="list-end">
+                        <div className="card-price">{settings.showPrices ? fmt(item.price || 0) : '****'}</div>
+                        <div className={`list-dot p${item.priority || 3}`} />
+                      </div>
+                    </>
+                  )}
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
 
-        <div className="toolbar animate-in">
-          <div className="search-wrap" style={{ flex: 1 }}><Search size={16} /><input className="search-input" placeholder="Buscar..." value={search} onChange={e => setSearch(e.target.value)} /></div>
-          <select className="form-select" style={{ width: 'auto' }} value={sortBy} onChange={e => setSortBy(e.target.value)}><option value="priority">Prioritários</option><option value="price">Maior Preço</option><option value="name">Nome (A-Z)</option></select>
-          <div className="view-tabs"><button className={`view-tab ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')}><Grid3X3 size={13} /></button><button className={`view-tab ${viewMode === 'list' ? 'active' : ''}`} onClick={() => setViewMode('list')}><List size={13} /></button></div>
-        </div>
-
-        <div className={`products-${viewMode} animate-in`}>
-          {filteredItems.map(item => (
-            <div key={item.id} className={`product-card ${item.purchased ? 'purchased' : ''}`} onClick={() => { setEditItem(item); setShowModal(true); }}>
-              <div className="product-img-wrap">
-                <div className="product-placeholder"><AnimIcon icon={Package} size={32} color="rgba(255,255,255,.05)" /></div><div className="product-img-gradient" />
-                {item.purchased && <div className="product-purchased-overlay"><Check size={24} color="#fff" strokeWidth={3} /></div>}
-                {item.videoLink && !item.purchased && (<a href={item.videoLink} target="_blank" rel="noopener noreferrer" className="video-badge" onClick={e => e.stopPropagation()}><Video size={12} /> Assistir</a>)}
-                <div className={`product-priority priority-${item.priority || 3}`}>{ [AlertTriangle, Zap, Lightbulb][(item.priority || 3)-1] && <AnimIcon icon={[AlertTriangle, Zap, Lightbulb][(item.priority || 3)-1]} size={13} /> }</div>
-                {!item.purchased && item.price > 0 && item.price <= totalCash && <div className="product-badge"><Sparkles size={11} /> <span>Pode Comprar</span></div>}
-              </div>
-              <div className="product-body">
-                <div className={`product-name ${item.purchased ? 'done' : ''}`}>{item.name}</div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
-                  <div className="product-price">{fmt(item.price || 0)}</div>
-                  <button className={`check-btn ${item.purchased ? 'done' : ''}`} onClick={e => { e.stopPropagation(); handleTogglePurchased(item.id); }}><Check size={16} strokeWidth={3} /></button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-        <button className="fab" onClick={() => { setEditItem(null); setShowModal(true); }}><Plus size={24} /></button>
+        <motion.button className="fab desktop-only" whileHover={{ scale: 1.06, y: -2 }} whileTap={{ scale: 0.95 }} onClick={() => { setEditItem(null); setShowModal(true); }}>
+          <Plus size={20} /> <span>Novo Item</span>
+        </motion.button>
       </main>
 
-      {showModal && <ItemModal item={editItem} rooms={data.rooms} onSave={val => {
-        updateData(d => {
-          if (val.id) { const i = d.items.findIndex(x => x.id === val.id); if (i >= 0) d.items[i] = { ...d.items[i], ...val }; }
-          else { d.items.push({ ...val, id: genId(), purchased: false }); }
-          return d;
-        }); setShowModal(false);
-      }} onClose={() => setShowModal(false)} />}
+      {/* ═══ MODALS ═══ */}
+      <AnimatePresence>
+        {showModal && (
+          <Modal onClose={() => { setShowModal(false); setEditItem(null); }} title={editItem ? 'Editar Item' : 'Novo Item'}>
+            <ItemForm item={editItem} rooms={rooms} onSave={handleSave} onDelete={editItem ? () => { handleDelete(editItem.id); setShowModal(false); setEditItem(null); } : null} />
+          </Modal>
+        )}
+        {showUrlModal && (
+          <Modal onClose={() => setShowUrlModal(false)} title="Importar por Link">
+            <UrlExtractor rooms={rooms} onImport={(item) => { handleSave(item); setShowUrlModal(false); }} />
+          </Modal>
+        )}
+        {showCashModal && (
+          <Modal onClose={() => setShowCashModal(null)} title="Atualizar Saldo" small>
+            <div className="modal-body">
+              <label className="fld-label">Novo Valor (R$)</label>
+              <input type="number" className="fld-input" placeholder="0.00" value={cashAmount} onChange={e => setCashAmount(e.target.value)} autoFocus />
+              <button className="btn-accent full mt-16" onClick={() => {
+                updateData(d => { d.cashBox[showCashModal] = parseFloat(cashAmount) || 0; return d; });
+                setCashAmount(''); setShowCashModal(null);
+              }}>Salvar</button>
+            </div>
+          </Modal>
+        )}
+        {showCategoryModal && (
+          <Modal onClose={() => { setShowCategoryModal(false); setEditCategory(null); }} title={editCategory ? 'Editar Categoria' : 'Nova Categoria'}>
+            <CategoryForm category={editCategory} onSave={handleSaveCategory} onDelete={editCategory ? () => handleDeleteCategory(editCategory.id) : null} />
+          </Modal>
+        )}
+        {showSuggestions && (
+          <Modal onClose={() => setShowSuggestions(false)} title="Sugestões de Produtos">
+            <SuggestionsPanel suggestions={suggestions} rooms={rooms} activeRoom={activeRoom} onAdd={handleAddSuggestion} onClose={() => setShowSuggestions(false)} />
+          </Modal>
+        )}
+        {showSettings && (
+          <Modal onClose={() => setShowSettings(false)} title="Configurações">
+            <SettingsPanel settings={settings} updateSettings={updateSettings} syncStatus={syncStatus}
+              onExport={handleExport} onImport={handleImport} onReset={() => { if (confirm('Resetar todos os dados?')) setData({ ...DEFAULT_DATA, version: Date.now() }); }}
+              onClose={() => setShowSettings(false)} />
+          </Modal>
+        )}
 
-      {showCashModal && (
-        <div className="modal-overlay" onClick={() => setShowCashModal(null)}><div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 300 }}>
-          <div className="modal-header"><h2 className="modal-title">Saldo</h2><button className="modal-close" onClick={() => setShowCashModal(null)}><X size={18} /></button></div>
-          <div className="modal-body">
-            <label className="form-label">Novo Valor R$</label>
-            <input type="number" className="form-input" placeholder="0.00" value={cashAmount} onChange={e => setCashAmount(e.target.value)} />
-            <button className="btn-primary" style={{ width: '100%', marginTop: 12 }} onClick={() => {
-              const v = parseFloat(cashAmount) || 0; 
-              updateData(d => { d.cashBox[showCashModal] = v; return d; });
-              setCashAmount(''); setShowCashModal(null);
-            }}>Salvar</button>
-          </div>
-        </div></div>
-      )}
-
-      {showSettingsModal && (
-        <div className="modal-overlay" onClick={() => setShowSettingsModal(false)}><div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
-          <div className="modal-header"><h2 className="modal-title">Configurações</h2><button className="modal-close" onClick={() => setShowSettingsModal(false)}><X size={18} /></button></div>
-          <div className="modal-body">
-            <div className="form-group">
-              <label className="form-label">Tema Visual</label>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button className={`btn-secondary ${theme === 'dark' ? 'active' : ''}`} onClick={() => setTheme('dark')} style={{ flex: 1, padding: '12px' }}>Escuro</button>
-                <button className={`btn-secondary ${theme === 'light' ? 'active' : ''}`} onClick={() => setTheme('light')} style={{ flex: 1, padding: '12px' }}>Claro</button>
+        {/* Lightbox */}
+        {lightboxImg && (
+          <motion.div className="lightbox" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setLightboxImg(null)}>
+            <motion.div className="lightbox-content" initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+              onClick={e => e.stopPropagation()}>
+              <button className="lightbox-close" onClick={() => setLightboxImg(null)}><X size={20} /></button>
+              <div className="lightbox-img-wrap">
+                <img src={lightboxImg.src} alt={lightboxImg.name} />
               </div>
+              <div className="lightbox-info">
+                <h3>{lightboxImg.name}</h3>
+                <div className="lightbox-meta">
+                  {lightboxImg.price > 0 && <span className="lightbox-price">{fmt(lightboxImg.price)}</span>}
+                  {lightboxImg.store && <span className="lightbox-store">{lightboxImg.store}</span>}
+                </div>
+                {lightboxImg.link && (
+                  <a href={lightboxImg.link} target="_blank" rel="noopener noreferrer" className="lightbox-link">
+                    <ExternalLink size={14} /> Abrir no site
+                  </a>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ─── Modal Wrapper ─── */
+function Modal({ children, onClose, title, small }) {
+  return (
+    <motion.div className="modal-ov" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}>
+      <motion.div className={`modal glass ${small ? 'modal-sm' : ''}`} {...modalV} onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <h2>{title}</h2>
+          <button className="modal-x" onClick={onClose}><X size={18} /></button>
+        </div>
+        {children}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* ─── Toggle ─── */
+function Toggle({ checked, onChange }) {
+  return (
+    <button className={`toggle ${checked ? 'on' : ''}`} onClick={() => onChange(!checked)}>
+      <motion.div className="toggle-knob" layout transition={{ type: 'spring', stiffness: 500, damping: 30 }} />
+    </button>
+  );
+}
+
+/* ─── Star Rating ─── */
+function StarRating({ value = 0, onChange }) {
+  return (
+    <div className="star-rating">
+      {[1, 2, 3, 4, 5].map(n => (
+        <motion.button key={n} whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.85 }} onClick={() => onChange(value === n ? 0 : n)}>
+          <Star size={18} fill={n <= value ? '#f59e0b' : 'transparent'} color={n <= value ? '#f59e0b' : 'var(--text-muted)'} />
+        </motion.button>
+      ))}
+    </div>
+  );
+}
+
+/* ─── Item Form ─── */
+function ItemForm({ item, rooms, onSave, onDelete }) {
+  const [f, setF] = useState(item || { name: '', room: rooms[0]?.id, price: '', priority: 2, store: '', videoLink: '', image: '', rating: 0 });
+  return (
+    <div className="modal-body">
+      <div className="fld"><label className="fld-label">Nome do Item</label><input className="fld-input" placeholder="Ex: Geladeira Brastemp" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} autoFocus /></div>
+      <div className="fld-row">
+        <div className="fld"><label className="fld-label">Preço (R$)</label><input type="number" className="fld-input" placeholder="0.00" value={f.price} onChange={e => setF({ ...f, price: parseFloat(e.target.value) || '' })} /></div>
+        <div className="fld"><label className="fld-label">Prioridade</label>
+          <select className="fld-select" value={f.priority} onChange={e => setF({ ...f, priority: parseInt(e.target.value) })}>
+            <option value="1">Alta</option><option value="2">Média</option><option value="3">Baixa</option>
+          </select>
+        </div>
+      </div>
+      <div className="fld-row">
+        <div className="fld"><label className="fld-label">Cômodo</label>
+          <select className="fld-select" value={f.room} onChange={e => setF({ ...f, room: e.target.value })}>
+            {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
+        </div>
+        <div className="fld"><label className="fld-label">Loja</label><input className="fld-input" placeholder="Amazon, ML..." value={f.store || ''} onChange={e => setF({ ...f, store: e.target.value })} /></div>
+      </div>
+      <div className="fld"><label className="fld-label">Link do Produto</label><input className="fld-input" placeholder="https://..." value={f.videoLink || ''} onChange={e => setF({ ...f, videoLink: e.target.value })} /></div>
+      <div className="fld"><label className="fld-label">Imagem (URL)</label><input className="fld-input" placeholder="https://...imagem.jpg" value={f.image || ''} onChange={e => setF({ ...f, image: e.target.value })} /></div>
+      {f.image && <div className="img-preview"><img src={f.image} alt="Preview" /></div>}
+      <div className="fld"><label className="fld-label">Avaliação</label><StarRating value={f.rating || 0} onChange={v => setF({ ...f, rating: v })} /></div>
+      <div className="form-btns">
+        {onDelete && <button className="btn-danger" onClick={onDelete}><Trash2 size={14} /> Excluir</button>}
+        <button className="btn-accent" style={{ flex: 1 }} onClick={() => onSave(f)}>{item ? 'Atualizar' : 'Adicionar'}</button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Category Form ─── */
+function CategoryForm({ category, onSave, onDelete }) {
+  const [name, setName] = useState(category?.name || '');
+  const [iconKey, setIconKey] = useState(category?.iconKey || 'Home');
+  const [color, setColor] = useState(category?.color || '#f59e0b');
+  const [iconSearch, setIconSearch] = useState('');
+
+  const filteredIcons = iconSearch ? ICON_NAMES.filter(n => n.toLowerCase().includes(iconSearch.toLowerCase())) : ICON_NAMES;
+
+  return (
+    <div className="modal-body">
+      <div className="fld"><label className="fld-label">Nome da Categoria</label><input className="fld-input" placeholder="Ex: Área Gourmet" value={name} onChange={e => setName(e.target.value)} autoFocus /></div>
+
+      <div className="fld">
+        <label className="fld-label">Cor</label>
+        <div className="color-grid">
+          {CATEGORY_COLORS.map(c => (
+            <motion.button key={c} className={`color-btn ${color === c ? 'active' : ''}`} style={{ background: c }} onClick={() => setColor(c)}
+              whileHover={{ scale: 1.2 }} whileTap={{ scale: 0.85 }}>
+              {color === c && <Check size={12} color="#fff" />}
+            </motion.button>
+          ))}
+        </div>
+      </div>
+
+      <div className="fld">
+        <label className="fld-label">Ícone</label>
+        <input className="fld-input" placeholder="Buscar ícone..." value={iconSearch} onChange={e => setIconSearch(e.target.value)} />
+        <div className="icon-grid">
+          {filteredIcons.slice(0, 60).map(n => {
+            const Icon = ALL_ICONS[n];
+            return (
+              <motion.button key={n} className={`icon-btn-pick ${iconKey === n ? 'active' : ''}`} onClick={() => setIconKey(n)}
+                whileHover={{ scale: 1.15, rotate: 8 }} whileTap={{ scale: 0.85 }} style={iconKey === n ? { borderColor: color, background: `${color}20` } : {}}>
+                <Icon size={18} color={iconKey === n ? color : undefined} />
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="cat-preview glass">
+        <div style={{ background: `${color}18`, color, padding: 8, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <AIcon name={iconKey} size={20} color={color} />
+        </div>
+        <span style={{ fontWeight: 700 }}>{name || 'Categoria'}</span>
+      </div>
+
+      <div className="form-btns">
+        {onDelete && <button className="btn-danger" onClick={onDelete}><Trash2 size={14} /> Excluir</button>}
+        <button className="btn-accent" style={{ flex: 1 }} onClick={() => onSave({ ...(category || {}), name, iconKey, color, isNew: !category })} disabled={!name.trim()}>
+          {category ? 'Atualizar' : 'Criar Categoria'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── URL Extractor ─── */
+function UrlExtractor({ rooms, onImport }) {
+  const [url, setUrl] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState('');
+  const [edit, setEdit] = useState(null);
+
+  const handleExtract = async () => {
+    if (!url.trim()) return;
+    setLoading(true); setError(''); setResult(null);
+    try {
+      const data = await extractProductFromUrl(url.trim());
+      if (data?.name) { setResult(data); setEdit({ ...data }); }
+      else setError('Não foi possível extrair informações. Tente outro URL.');
+    } catch { setError('Erro ao acessar o link.'); }
+    setLoading(false);
+  };
+
+  const handlePaste = async () => { try { const t = await navigator.clipboard.readText(); if (t) setUrl(t); } catch {} };
+
+  return (
+    <div className="modal-body url-ext">
+      <p className="url-desc">Cole o link de qualquer produto (Amazon, Mercado Livre, Magazine Luiza, Shopee, KaBuM, etc.) e extrairemos automaticamente.</p>
+      <div className="url-row">
+        <div className="url-wrap glass">
+          <Globe size={16} />
+          <input className="url-input" placeholder="Cole o link aqui..." value={url} onChange={e => setUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleExtract()} />
+        </div>
+        <motion.button className="icon-btn glass" whileTap={{ scale: 0.9 }} onClick={handlePaste} title="Colar"><Clipboard size={16} /></motion.button>
+        <button className="btn-accent" onClick={handleExtract} disabled={loading || !url.trim()}>
+          {loading ? <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}><Loader2 size={16} /></motion.span> : <Search size={16} />}
+          {loading ? 'Buscando...' : 'Extrair'}
+        </button>
+      </div>
+      {error && <motion.div className="url-error" {...fadeUp}><XCircle size={16} /> {error}</motion.div>}
+      {edit && (
+        <motion.div className="url-result" {...fadeUp}>
+          <div className="url-ok"><CheckCircle2 size={16} /> Produto encontrado!</div>
+          {result.image && <div className="url-img"><img src={result.image} alt="" /></div>}
+          <div className="fld"><label className="fld-label">Nome</label><input className="fld-input" value={edit.name} onChange={e => setEdit({ ...edit, name: e.target.value })} /></div>
+          <div className="fld-row">
+            <div className="fld"><label className="fld-label">Preço</label><input type="number" className="fld-input" value={edit.price} onChange={e => setEdit({ ...edit, price: parseFloat(e.target.value) || 0 })} /></div>
+            <div className="fld"><label className="fld-label">Cômodo</label>
+              <select className="fld-select" value={edit.room} onChange={e => setEdit({ ...edit, room: e.target.value })}>
+                {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
             </div>
-            <div className="form-group" style={{ opacity: 0.5 }}>
-              <label className="form-label">Backup</label>
-              <p style={{ fontSize: 11 }}>Os dados estão integrados com o Firebase (Nossa Casa 92ffe).</p>
-            </div>
-            <button className="btn-primary" style={{ width: '100%', marginTop: 20 }} onClick={() => setShowSettingsModal(false)}>Fechar</button>
           </div>
-        </div></div>
+          <div className="fld-row">
+            <div className="fld"><label className="fld-label">Prioridade</label>
+              <select className="fld-select" value={edit.priority} onChange={e => setEdit({ ...edit, priority: parseInt(e.target.value) })}>
+                <option value="1">Alta</option><option value="2">Média</option><option value="3">Baixa</option>
+              </select>
+            </div>
+            <div className="fld"><label className="fld-label">Loja</label><input className="fld-input" value={edit.store || ''} onChange={e => setEdit({ ...edit, store: e.target.value })} /></div>
+          </div>
+          <button className="btn-accent full mt-16" onClick={() => onImport(edit)}><Plus size={16} /> Adicionar à Lista</button>
+        </motion.div>
       )}
     </div>
   );
 }
 
-function ItemModal({ item, rooms, onSave, onClose }) {
-  const [f, setF] = useState(item || { name: '', room: rooms[0]?.id, price: '', priority: 3, store: '', notes: '', videoLink: '' });
+/* ─── Suggestions ─── */
+function SuggestionsPanel({ suggestions, rooms, activeRoom, onAdd, onClose }) {
   return (
-    <div className="modal-overlay" onClick={onClose}><div className="modal-content" onClick={e => e.stopPropagation()}>
-      <div className="modal-header"><h2 className="modal-title">{item ? 'Editar' : 'Novo'}</h2><button className="modal-close" onClick={onClose}><X size={18} /></button></div>
-      <div className="modal-body">
-        <div className="form-group"><label className="form-label">Nome</label><input className="form-input" value={f.name} onChange={e => setF({ ...f, name: e.target.value })} /></div>
-        <div className="form-row">
-          <div className="form-group"><label className="form-label">Preço</label><input type="number" className="form-input" value={f.price} onChange={e => setF({ ...f, price: parseFloat(e.target.value) || '' })} /></div>
-          <div className="form-group"><label className="form-label">Urgência</label><select className="form-select" value={f.priority} onChange={e => setF({ ...f, priority: parseInt(e.target.value) })}><option value="1">Alta</option><option value="2">Média</option><option value="3">Baixa</option></select></div>
+    <div className="modal-body">
+      <p className="url-desc">Produtos sugeridos que você ainda não tem na sua lista{activeRoom !== 'all' ? ` para ${rooms.find(r => r.id === activeRoom)?.name}` : ''}.</p>
+      {suggestions.length === 0 ? (
+        <div className="empty-mini"><Sparkles size={24} /><p>Sua lista já está bem completa!</p></div>
+      ) : (
+        <div className="sug-grid">
+          {suggestions.map((s, i) => (
+            <motion.div key={i} className="sug-card glass" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+              whileHover={{ scale: 1.02 }}>
+              <div className="sug-info">
+                <div className="sug-name">{s.name}</div>
+                <div className="sug-price">{fmt(s.price)}</div>
+              </div>
+              <div className={`sug-pri p${s.priority}`}>{s.priority === 1 ? 'Alta' : s.priority === 2 ? 'Média' : 'Baixa'}</div>
+              <motion.button className="sug-add" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={() => onAdd(s)}>
+                <Plus size={16} />
+              </motion.button>
+            </motion.div>
+          ))}
         </div>
-        <div className="form-row">
-          <div className="form-group"><label className="form-label">Cômodo</label><select className="form-select" value={f.room} onChange={e => setF({ ...f, room: e.target.value })}>{rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select></div>
-          <div className="form-group"><label className="form-label">Loja</label><input className="form-input" value={f.store} onChange={e => setF({ ...f, store: e.target.value })} /></div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Settings ─── */
+function SettingsPanel({ settings, updateSettings, syncStatus, onExport, onImport, onReset, onClose }) {
+  return (
+    <div className="modal-body settings">
+      <div className="stg-section">
+        <h3 className="stg-title">Aparência</h3>
+        <div className="stg-row">
+          <div className="stg-info">{settings.theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}<div><div className="stg-name">Tema</div><div className="stg-desc">Alterna entre claro e escuro</div></div></div>
+          <div className="theme-btns">
+            <button className={settings.theme === 'dark' ? 'active' : ''} onClick={() => updateSettings({ theme: 'dark' })}><Moon size={14} /> Escuro</button>
+            <button className={settings.theme === 'light' ? 'active' : ''} onClick={() => updateSettings({ theme: 'light' })}><Sun size={14} /> Claro</button>
+          </div>
         </div>
-        <div className="form-group"><label className="form-label">Vídeo</label><input className="form-input" value={f.videoLink} onChange={e => setF({ ...f, videoLink: e.target.value })} /></div>
-        <button className="btn-primary" style={{ width: '100%', marginTop: 12, padding: 14 }} onClick={() => onSave(f)}>Salvar</button>
       </div>
-    </div></div>
+      <div className="stg-section">
+        <h3 className="stg-title">Exibição</h3>
+        <div className="stg-row"><div className="stg-info"><Eye size={16} /><div><div className="stg-name">Mostrar comprados</div><div className="stg-desc">Exibir itens já comprados</div></div></div><Toggle checked={settings.showPurchased} onChange={v => updateSettings({ showPurchased: v })} /></div>
+        <div className="stg-row"><div className="stg-info"><CircleDollarSign size={16} /><div><div className="stg-name">Mostrar preços</div><div className="stg-desc">Exibir preços nos cards</div></div></div><Toggle checked={settings.showPrices} onChange={v => updateSettings({ showPrices: v })} /></div>
+        <div className="stg-row"><div className="stg-info"><Bell size={16} /><div><div className="stg-name">Notificações</div><div className="stg-desc">Alertas de alterações</div></div></div><Toggle checked={settings.notifications} onChange={v => updateSettings({ notifications: v })} /></div>
+      </div>
+      <div className="stg-section">
+        <h3 className="stg-title">Dados</h3>
+        <div className="stg-row"><div className="stg-info"><Download size={16} /><div><div className="stg-name">Exportar dados</div><div className="stg-desc">Backup em JSON</div></div></div><button className="btn-outline" onClick={onExport}><Download size={14} /> Exportar</button></div>
+        <div className="stg-row"><div className="stg-info"><Upload size={16} /><div><div className="stg-name">Importar dados</div><div className="stg-desc">Restaurar backup</div></div></div><button className="btn-outline" onClick={onImport}><Upload size={14} /> Importar</button></div>
+        <div className="stg-row"><div className="stg-info"><RotateCcw size={16} /><div><div className="stg-name">Resetar tudo</div><div className="stg-desc">Voltar aos dados iniciais</div></div></div><button className="btn-danger-sm" onClick={onReset}><RotateCcw size={14} /> Resetar</button></div>
+      </div>
+      <div className="stg-section">
+        <h3 className="stg-title">Sincronização</h3>
+        <div className="sync-card glass">
+          <div className={`sync-dot-lg ${syncStatus === 'ok' ? 'ok' : syncStatus === 'syncing' ? 'syncing' : 'err'}`} />
+          <div><div className="stg-name">Firebase Realtime</div><div className="stg-desc">{syncStatus === 'ok' ? 'Conectado e sincronizado' : syncStatus === 'syncing' ? 'Sincronizando...' : 'Erro na conexão'}</div></div>
+        </div>
+        <p className="stg-note">Alterações feitas por outra pessoa aparecem automaticamente em tempo real.</p>
+      </div>
+      <button className="btn-accent full mt-16" onClick={onClose}>Fechar</button>
+    </div>
   );
 }
