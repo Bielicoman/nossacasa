@@ -12,7 +12,7 @@ import './index.css';
 import { db, ref, onValue, set as dbSet } from './firebase';
 
 /* ─── Data Store ─── */
-const STORE_KEY = 'nossa_casa_data_v4';
+const STORE_KEY = 'nossa_casa_data_v5';
 
 function loadData() {
   try {
@@ -28,12 +28,18 @@ function saveData(data) {
 
 async function cloudWrite(data) {
   try {
+    // PROTEÇÃO: Nunca permitir sobrescrever o banco com dados vazios acidentalmente
+    if (!data.items || data.items.length < 10) {
+      console.warn('Proteção de dados: Tentativa de salvar lista incompleta bloqueada.');
+      return null;
+    }
+    const v = Date.now();
     const dbRef = ref(db, 'shared-data');
-    await dbSet(dbRef, { ...data, version: Date.now() });
-    return true;
+    await dbSet(dbRef, { ...data, version: v });
+    return v;
   } catch (err) {
-    console.warn('Firebase Write Pending/Error:', err);
-    return false;
+    console.warn('Firebase Write Error:', err);
+    return null;
   }
 }
 
@@ -81,11 +87,34 @@ const DEFAULT_ROOMS = [
   { id: 'tecnologia', name: 'Tecnologia & Automação', iconKey: 'tecnologia' },
 ];
 
+const INITIAL_ITEMS = [
+  { id: '1', name: 'Geladeira Midea', price: 4200, room: 'cozinha', priority: 1, purchased: false, videoLink: 'https://meli.la/2HsdQuS' },
+  { id: '2', name: 'Lava e Seca', price: 3800, room: 'lavanderia', priority: 1, purchased: false, videoLink: 'https://meli.la/1LFYhGq' },
+  { id: '3', name: 'Forno Air Fryer', price: 1200, room: 'cozinha', priority: 2, purchased: false, videoLink: 'https://meli.la/27dGe7e' },
+  { id: '4', name: 'Air Fryer (Amazon)', price: 600, room: 'cozinha', priority: 2, purchased: false, videoLink: 'https://a.co/d/0dYMbALt' },
+  { id: '5', name: 'Liquidificador Turbo', price: 350, room: 'cozinha', priority: 3, purchased: false, videoLink: 'https://a.co/d/03JsJxsy' },
+  { id: '6', name: 'Batedeira Planetária', price: 850, room: 'cozinha', priority: 2, purchased: false, videoLink: 'https://a.co/d/02DCpNRM' },
+  { id: '7', name: 'Jogo de Talheres', price: 250, room: 'cozinha', priority: 2, purchased: false, videoLink: 'https://a.co/d/0ejzDttK' },
+  { id: '8', name: 'Kit de Facas Profissionais', price: 400, room: 'cozinha', priority: 2, purchased: false, videoLink: 'https://a.co/d/05BDTS5i' },
+  { id: '9', name: 'Cama King Premium Emma', price: 4500, room: 'quarto', priority: 1, purchased: false },
+  { id: '10', name: 'Sofá Modular 4 Lugares', price: 5800, room: 'sala', priority: 1, purchased: false, videoLink: 'https://sofanacaixa.com.br/products/sofa-na-caixa-modular-4-lugares-em-boucle-1canto-puff-cinza' },
+  { id: '11', name: 'Fogão de Indução Midea', price: 1800, room: 'cozinha', priority: 1, purchased: false, videoLink: 'https://www.magazineluiza.com.br/cooktop-4-bocas-eletrico-midea-vitroceramico-touch-digital-preto-acendimento-automatico-cyc40p2/p/240118700/ed/ck4b/' },
+  { id: '12', name: 'Kit Panelas Prime', price: 1100, room: 'cozinha', priority: 1, purchased: false, videoLink: 'https://a.co/d/0g1fX5nJ' },
+  { id: '13', name: 'Jogo de Copos Cristal', price: 150, room: 'cozinha', priority: 3, purchased: false, videoLink: 'https://www.mercadolivre.com.br/up/MLBU3564789520?pdp_filters=item_id:MLB4305363283' },
+  { id: '14', name: '2 Vasos Sanitários Prime', price: 2400, room: 'banheiro', priority: 2, purchased: false, videoLink: 'https://meli.la/1DF17sW' },
+  { id: '15', name: 'Tapete Banheiro Soft', price: 120, room: 'banheiro', priority: 3, purchased: false, videoLink: 'https://meli.la/1KpqxMe' },
+  { id: '16', name: 'Guarda-roupa Bartira Casal', price: 2200, room: 'quarto', priority: 1, purchased: false, videoLink: 'https://share.google/YHDL6Hd6TwpGV3sy9' },
+  { id: '17', name: 'Microondas Inox', price: 900, room: 'cozinha', priority: 2, purchased: false, videoLink: 'https://a.co/d/012NWzEk' },
+  { id: '18', name: 'TV Sala 70" Samsung 4K', price: 4200, room: 'sala', priority: 1, purchased: false, videoLink: 'https://www.magazineluiza.com.br/smart-tv-70-samsung-uhd-4k-crystal-u8500f-un70u8500fgxzd-tizen-2025/p/240576700/et/tv4k/' },
+  { id: '19', name: 'Rack Vivare 180cm', price: 1000, room: 'sala', priority: 2, purchased: false, videoLink: 'https://share.google/Z6avwn38jV8NEAOgI' },
+  { id: '20', name: 'Lustre Moderno Crystal', price: 1500, room: 'sala', priority: 3, purchased: false, videoLink: 'https://meli.la/2JxB3fa' },
+];
+
 const DEFAULT_DATA = {
-  items: [],
+  items: INITIAL_ITEMS,
   rooms: DEFAULT_ROOMS,
   cashBox: { dele: 0, dela: 0, outros: 0, reserva: 0 },
-  version: 0
+  version: Date.now() // Super version to force override cloud
 };
 
 /* ─── Components ─── */
@@ -136,62 +165,60 @@ export default function App() {
   const totalPending = items.filter(i => !i.purchased).reduce((s, i) => s + (i.price || 0), 0);
   const totalCash = (data.cashBox?.dele || 0) + (data.cashBox?.dela || 0) + (data.cashBox?.outros || 0) + (data.cashBox?.reserva || 0);
 
-  // Logic
+  const isWritingRef = useRef(false);
+  const lastInteractionRef = useRef(Date.now());
+
+  // Logic: Write to Cloud
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
     saveData(data);
     localStorage.setItem('nossa_casa_theme', theme);
+    
     if (writeTimerRef.current) clearTimeout(writeTimerRef.current);
     writeTimerRef.current = setTimeout(async () => {
       setSyncStatus('syncing');
+      isWritingRef.current = true;
       const ok = await cloudWrite(data);
-      setSyncStatus(ok ? 'ok' : 'err');
-      if (ok) cloudVersionRef.current = Date.now();
-    }, 2500);
+      if (ok) {
+        console.log('✅ Gravação enviada com sucesso');
+        setSyncStatus('ok');
+      } else {
+        setSyncStatus('err');
+      }
+      setTimeout(() => { isWritingRef.current = false; }, 3000);
+    }, 2000);
   }, [data]);
 
-  // Firebase Realtime Listener with Crash Protection
+  // Firebase Realtime Listener
   useEffect(() => {
-    if (!db) {
-      setSyncStatus('err');
-      return;
-    }
+    if (!db) return;
     
-    try {
-      const dbRef = ref(db, 'shared-data');
-      const unsubscribe = onValue(dbRef, (snapshot) => {
-        try {
-          const remote = snapshot.val();
-          if (!remote) {
-            setSyncStatus('ok');
-            return;
-          }
-          
-          if (remote.version && remote.version > cloudVersionRef.current) {
-            console.log('Firebase Sync: Updating local state...');
-            cloudVersionRef.current = remote.version;
-            const newData = convertCloudData(remote);
-            if (newData) {
-              setData(newData);
-              saveData(newData);
-              setSyncStatus('ok');
+    const dbRef = ref(db, 'shared-data');
+    const unsubscribe = onValue(dbRef, (snapshot) => {
+      if (isWritingRef.current) return;
+
+      try {
+        const remote = snapshot.val();
+        if (!remote || !remote.version) return;
+        
+        setData(current => {
+          if (remote.version > (current.version || 0)) {
+            // PROTEÇÃO: Se a nuvem estiver vazia ou com poucos itens, não apagar o local
+            if (!remote.items || remote.items.length < 10) {
+              console.warn('🛡️ Sync ignorado: Nuvem incompleta.');
+              return current;
             }
-          } else {
-            setSyncStatus('ok');
+
+            console.log('📥 Cloud Sync Applied:', remote.version);
+            const newData = convertCloudData(remote);
+            return newData || current;
           }
-        } catch (innerErr) {
-          console.error('Data Conversion Error:', innerErr);
-          setSyncStatus('err');
-        }
-      }, (err) => {
-        console.warn('Firebase permission or connection issue:', err);
-        setSyncStatus('err');
-      });
-      return () => unsubscribe();
-    } catch (e) {
-      console.warn('Firebase real-time sync failed to initialize:', e);
-      setSyncStatus('err');
-    }
+          return current;
+        });
+      } catch (err) { console.error('Sync error:', err); }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const filteredItems = useMemo(() => {
@@ -221,7 +248,12 @@ export default function App() {
   }, [items]);
 
   const updateData = useCallback((fn) => {
-    setData(prev => fn(JSON.parse(JSON.stringify(prev))));
+    setData(prev => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      const next = fn(copy);
+      next.version = Date.now(); // Stamp local update immediately
+      return next;
+    });
   }, []);
 
   const handleTogglePurchased = (id) => updateData(d => {
@@ -248,6 +280,14 @@ export default function App() {
       {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
 
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <div className="nav-bottom-tabs">
+          <button className={`tab-btn ${activeRoom === 'all' ? 'active' : ''}`} onClick={() => setActiveRoom('all')}><Home size={18} /><span>Início</span></button>
+          <button className="tab-btn" onClick={() => setSidebarOpen(true)}><Menu size={18} /><span>Cômodos</span></button>
+          <button className="tab-btn" onClick={() => { setEditItem(null); setShowModal(true); }}><Plus size={20} className="tab-plus" /><span>Novo</span></button>
+          <button className={`tab-btn ${theme === 'light' ? 'active' : ''}`} onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}><Sparkles size={18} /><span>Tema</span></button>
+          <button className="tab-btn" onClick={() => setShowSettingsModal(true)}><Settings size={18} /><span>Configs</span></button>
+        </div>
+
         <div className="logo"><AnimIcon icon={Home} size={20} color="#f59e0b" animate="pulse" /> Nossa Casa</div>
         <div className="logo-sub">Planejando o nosso futuro lar.</div>
 

@@ -629,28 +629,69 @@ body {
   animation:spin .8s linear infinite;
 }
 
-/* Mobile */
-@media(max-width:768px){
-  .sidebar{transform:translateX(-100%)}
-  .sidebar.open{transform:translateX(0)}
-  .main-content{margin-left:0;padding:20px 16px 100px}
-  .cash-grid{grid-template-columns:repeat(2,1fr)}
-  .products-grid{grid-template-columns:1fr}
-  .mobile-header{
-    display:flex;align-items:center;gap:12px;
-    margin-bottom:16px;
-  }
-  .mobile-menu-btn{
-    width:40px;height:40px;border-radius:12px;
-    background:rgba(255,255,255,.04);border:none;
-    color:#888;cursor:pointer;display:flex;
-    align-items:center;justify-content:center;
-  }
-  .sidebar-backdrop{
-    position:fixed;inset:0;
-    background:rgba(0,0,0,.6);z-index:40;
-  }
+/* Mobile Navigation & Grid Redesign */
+.nav-bottom-tabs{
+  display:none;position:fixed;bottom:0;left:0;right:0;height:70px;
+  background:var(--card-bg);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);
+  border-top:1px solid var(--card-border);
+  z-index:900;padding:10px 10px 20px;
+  justify-content:space-around;box-shadow:0 -10px 30px rgba(0,0,0,0.1);
 }
+
+@media (max-width:768px){
+  .nav-bottom-tabs{display:flex}
+  .sidebar{
+    position:fixed;left:0;top:0;height:100%;z-index:1001;
+    transform:translateX(-100%);transition:transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    width:280px;padding-bottom:100px;
+  }
+  .sidebar.open{transform:translateX(0)}
+  .sidebar-backdrop{
+    position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);z-index:1000;
+  }
+  .main-content{margin-left:0;padding:16px 16px 100px}
+  .mobile-header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+  .mobile-menu-btn{display:none} /* Tab bar will handle this */
+  
+  .product-grid{
+    grid-template-columns: repeat(2, 1fr);
+    gap:12px;
+  }
+  .product-card{padding:12px;border-radius:18px}
+  .product-card h3{font-size:13px;line-height:1.2;margin:8px 0 4px}
+  .product-price{font-size:15px;margin-bottom:10px}
+  .product-footer{flex-direction:column;align-items:flex-start;gap:8px}
+  .btn-check{width:100%;justify-content:center;padding:8px;font-size:11px}
+  
+  .cash-grid{grid-template-columns:repeat(2,1fr);gap:12px}
+  .cash-card{padding:14px;border-radius:18px}
+  .cash-card h4{font-size:10px}
+  .cash-card .amount{font-size:18px}
+  
+  .toolbar{gap:10px;margin-bottom:20px}
+  .search-wrap{max-width:none;flex:1}
+  .form-select{min-width:110px;flex:0}
+  
+  .fab{display:none} /* Removed to prioritize bottom nav */
+}
+
+.tab-btn{
+  background:none;border:none;color:var(--text-secondary);
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  cursor:pointer;transition:all .2s;flex:1;
+  position:relative;
+}
+.tab-btn span{font-size:9px;font-weight:700;letter-spacing:0.3px}
+.tab-btn.active{color:var(--accent)}
+.tab-btn svg{transition:transform 0.2s}
+.tab-btn:active svg{transform:scale(0.85)}
+
+.tab-plus{
+  background:var(--accent);color:#000;padding:11px;
+  border-radius:15px;box-shadow:0 6px 20px var(--accent-glow);
+  margin-top:-35px;border:4px solid var(--app-bg);
+}
+
 @media(min-width:769px){
-  .mobile-header,.mobile-menu-btn,.sidebar-backdrop{display:none}
+  .mobile-header,.mobile-menu-btn,.sidebar-backdrop,.nav-bottom-tabs{display:none}
 }
