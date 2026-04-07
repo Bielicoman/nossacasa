@@ -265,13 +265,22 @@ function parseProductHtml(html, url) {
   const getMeta = (prop) => (doc.querySelector(`meta[property="${prop}"]`) || doc.querySelector(`meta[name="${prop}"]`))?.getAttribute('content') || '';
 
   let title = getMeta('og:title') || getMeta('twitter:title') || doc.querySelector('title')?.textContent || '';
-  title = title.replace(/\s*[-|–]\s*(Amazon|Mercado Livre|Magazine Luiza|Magalu|KaBuM).*$/i, '').trim();
+  title = title.replace(/\s*[-|–]\s*(Amazon|Mercado Livre|Magazine Luiza|Magalu|KaBuM|Shopee|AliExpress).*$/i, '').trim();
   const description = getMeta('og:description') || getMeta('description') || '';
   const image = getMeta('og:image') || getMeta('twitter:image') || '';
 
   let price = 0;
-  const priceAmount = getMeta('product:price:amount') || getMeta('og:price:amount');
-  if (priceAmount) price = parseFloat(priceAmount.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+  // Specific for ML
+  if (url.includes('mercadolivre') || url.includes('meli.la')) {
+    const mlPrice = doc.querySelector('.ui-pdp-price__part--medium .andes-money-amount__fraction, .andes-money-amount__fraction')?.textContent;
+    if (mlPrice) price = parseFloat(mlPrice.replace(/[^\d]/g, '')) || 0;
+  }
+  
+  if (!price) {
+    const priceAmount = getMeta('product:price:amount') || getMeta('og:price:amount');
+    if (priceAmount) price = parseFloat(priceAmount.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+  }
+  
   if (!price) {
     const m = [...html.matchAll(/R\$\s*([\d.,]+)/g)];
     if (m.length > 0) price = parseFloat(m[0][1].replace(/\./g, '').replace(',', '.')) || 0;
@@ -544,22 +553,24 @@ export default function App() {
     if (writeTimerRef.current) clearTimeout(writeTimerRef.current);
     writeTimerRef.current = setTimeout(async () => {
       setSyncStatus('syncing');
-      isWritingRef.current = true;
       const ok = await cloudWrite(data);
       setSyncStatus(ok ? 'ok' : 'err');
-      setTimeout(() => { isWritingRef.current = false; }, 3000);
-    }, 2000);
+    }, 200);
   }, [data]);
 
   useEffect(() => {
     if (!db) return;
     const dbRef = ref(db, 'shared-data');
     const unsub = onValue(dbRef, (snap) => {
-      if (isWritingRef.current) return;
       try {
         const remote = snap.val();
         if (!remote?.version) return;
-        setData(cur => remote.version > (cur.version || 0) ? (convertCloudData(remote) || cur) : cur);
+        setData(cur => {
+          if (remote.version > (cur.version || 0)) {
+            return convertCloudData(remote) || cur;
+          }
+          return cur;
+        });
       } catch (e) { console.error('Sync err:', e); }
     });
     return () => unsub();

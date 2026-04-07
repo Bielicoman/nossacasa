@@ -959,13 +959,24 @@ body {
   .action-row { flex-direction: column; }
   .action-btn { width: 100%; justify-content: center; }
 
-  .items-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  .card-vis { padding-bottom: 80%; }
-  .card-body { padding: 10px 12px 12px; }
-  .card-name { font-size: 12px; }
-  .card-price { font-size: 13px; }
-  .card-chk { width: 28px; height: 28px; }
-  .card-room-tag { font-size: 8px; }
+  .items-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px; }
+  .card-vis { padding-bottom: 55%; }
+  .card-body { padding: 6px 8px 8px; gap: 2px; }
+  .card-name { font-size: 10.5px; font-weight: 700; line-height: 1.25; height: 2.5em; }
+  .card-price { font-size: 11.5px; font-weight: 800; }
+  .card-chk { width: 22px; height: 22px; }
+  .card-chk svg { width: 12px; height: 12px; }
+  .card-room-tag { font-size: 6.5px; }
+  .card-pri { width: 18px; height: 18px; font-size: 9px; top: 4px; right: 4px; }
+  .card-link { padding: 2px 6px; font-size: 7.5px; top: 4px; left: 4px; }
+
+  /* Ensure card name really clamps */
+  .card-name {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 
   .fab { display: none !important; }
 
@@ -978,6 +989,10 @@ body {
   .fld-row { grid-template-columns: 1fr; }
   .url-row { flex-direction: column; }
   .url-wrap { min-width: 0; width: 100%; }
+
+  .sb-inner { padding: 20px 10px; }
+  .sb-logo { font-size: 17px; }
+  .sb-nav { padding: 7px 10px; font-size: 11.5px; }
 
   .verse-card { display: none; }
 }
