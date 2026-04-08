@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import {
   Search, Plus, Check, X, Menu, ExternalLink, Home, ChefHat, Sofa, BedDouble,
   ShowerHead, WashingMachine, Monitor, Car, TreePine, Bot, Settings, BookOpen,
@@ -517,7 +517,7 @@ export default function App() {
   const [cashAmount, setCashAmount] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
-  const [sortBy, setSortBy] = useState('priority');
+  const [sortBy, setSortBy] = useState('manual');
   const [syncStatus, setSyncStatus] = useState('idle');
   const [showSettings, setShowSettings] = useState(false);
   const [showUrlModal, setShowUrlModal] = useState(false);
@@ -774,7 +774,11 @@ export default function App() {
               <div className={`sync-dot ${syncStatus === 'syncing' ? 'syncing' : syncStatus === 'err' ? 'err' : 'ok'}`} />
               <span>{syncStatus === 'syncing' ? 'Sincronizando...' : syncStatus === 'err' ? 'Erro' : 'Sincronizado'}</span>
             </div>
-            <button className="sb-nav" onClick={() => setShowSettings(true)}><Settings size={15} /> <span>Configurações</span></button>
+            <div className="sb-foot-btns">
+              <button className="icon-btn-sm glass" onClick={() => updateSettings({ theme: theme === 'dark' ? 'light' : 'dark' })} title="Tema">
+                {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+              </button>
+            </div>
           </div>
         </div>
       </aside>
@@ -784,11 +788,7 @@ export default function App() {
         <header className="m-header">
           <button className="icon-btn glass" onClick={() => setSidebarOpen(true)}><Menu size={20} /></button>
           <div className="m-logo"><Home size={16} /> Nossa Casa</div>
-          <button className="icon-btn glass" onClick={() => updateSettings({ theme: theme === 'dark' ? 'light' : 'dark' })}>
-            <motion.div key={theme} initial={{ rotate: -30, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} transition={{ duration: 0.3 }}>
-              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-            </motion.div>
-          </button>
+          <div style={{ width: 40 }} /> {/* Spacer */}
         </header>
 
         {/* Mobile Room Chips */}
@@ -816,9 +816,6 @@ export default function App() {
               <p className="pg-sub">Construindo o nosso lar com amor</p>
             </div>
             <div className="pg-actions desktop-only">
-              <button className="icon-btn glass" onClick={() => updateSettings({ theme: theme === 'dark' ? 'light' : 'dark' })}>
-                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-              </button>
               <button className="icon-btn glass" onClick={() => setShowSettings(true)}><Settings size={18} /></button>
             </div>
           </div>
@@ -879,6 +876,7 @@ export default function App() {
           </div>
           <div className="tb-actions">
             <select className="tb-select glass" value={sortBy} onChange={e => setSortBy(e.target.value)}>
+              <option value="manual">Personalizado</option>
               <option value="priority">Prioridade</option>
               <option value="price">Maior Preço</option>
               <option value="rating">Avaliação</option>
@@ -932,8 +930,44 @@ export default function App() {
             ) : filteredItems.map(item => {
               const roomData = rooms.find(r => r.id === item.room);
               return (
-                <motion.div key={item.id} className={`card ${item.purchased ? 'purchased' : ''} ${viewMode}`} variants={cardV} initial="initial" animate="animate" exit="exit" layout
-                  onClick={() => { setEditItem(item); setShowModal(true); }} whileHover={viewMode === 'grid' ? { y: -4, scale: 1.01 } : { x: 2 }}>
+                <motion.div 
+                  key={item.id} 
+                  className={`card ${item.purchased ? 'purchased' : ''} ${viewMode}`} 
+                  variants={cardV} initial="initial" animate="animate" exit="exit" 
+                  layout
+                  drag={sortBy === 'manual'}
+                  dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+                  dragElastic={0.15}
+                  onDragEnd={(e, info) => {
+                    if (sortBy !== 'manual') return;
+                    const itemsArr = Array.from(document.querySelectorAll(`.card.${viewMode}`));
+                    const draggedIdx = filteredItems.findIndex(fi => fi.id === item.id);
+                    // Find closest sibling by distance
+                    let closest = { idx: -1, dist: 9999 };
+                    itemsArr.forEach((el, idx) => {
+                      if (idx === draggedIdx) return;
+                      const rect = el.getBoundingClientRect();
+                      const dx = info.point.x - (rect.left + rect.width / 2);
+                      const dy = info.point.y - (rect.top + rect.height / 2);
+                      const d = Math.sqrt(dx*dx + dy*dy);
+                      if (d < 50 && d < closest.dist) closest = { idx, dist: d };
+                    });
+                    if (closest.idx !== -1) {
+                      const targetId = filteredItems[closest.idx].id;
+                      setData(prev => {
+                        const nextItems = [...prev.items];
+                        const from = nextItems.findIndex(ni => ni.id === item.id);
+                        const to = nextItems.findIndex(ni => ni.id === targetId);
+                        const [moved] = nextItems.splice(from, 1);
+                        nextItems.splice(to, 0, moved);
+                        return { ...prev, items: nextItems, version: Date.now() };
+                      });
+                    }
+                  }}
+                  whileDrag={{ scale: 1.05, zIndex: 100, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}
+                  onClick={() => { setEditItem(item); setShowModal(true); }} 
+                  whileHover={viewMode === 'grid' ? { y: -4, scale: 1.01 } : { x: 2 }}
+                >
                   {viewMode === 'grid' ? (
                     <>
                       <div className="card-vis">
