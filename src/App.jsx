@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { motion, AnimatePresence, Reorder } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Plus, Check, X, Menu, ExternalLink, Home, ChefHat, Sofa, BedDouble,
   ShowerHead, WashingMachine, Monitor, Car, TreePine, Bot, Settings, BookOpen,
@@ -232,6 +232,8 @@ async function extractProductFromUrl(url) {
 
   const proxies = [
     { makeUrl: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, isJson: true },
+    { makeUrl: (u) => `https://api.codetabs.com/v1/proxy?url=${encodeURIComponent(u)}`, isJson: false },
+    { makeUrl: (u) => `https://thingproxy.freeboard.io/fetch/${u}`, isJson: false },
     { makeUrl: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`, isJson: false },
     { makeUrl: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`, isJson: false },
   ];
@@ -265,15 +267,38 @@ function parseProductHtml(html, url) {
   const getMeta = (prop) => (doc.querySelector(`meta[property="${prop}"]`) || doc.querySelector(`meta[name="${prop}"]`))?.getAttribute('content') || '';
 
   let title = getMeta('og:title') || getMeta('twitter:title') || doc.querySelector('title')?.textContent || '';
-  title = title.replace(/\s*[-|–]\s*(Amazon|Mercado Livre|Magazine Luiza|Magalu|KaBuM|Shopee|AliExpress).*$/i, '').trim();
+  
+  // High-priority selector extraction
+  if (url.includes('mercadolivre') || url.includes('meli.la')) {
+    title = doc.querySelector('.ui-pdp-title')?.textContent || title;
+  } else if (url.includes('amazon') || url.includes('a.co')) {
+    title = doc.querySelector('#productTitle')?.textContent || title;
+  } else if (url.includes('magazineluiza') || url.includes('magalu')) {
+    title = doc.querySelector('[data-testid="heading-product-title"]')?.textContent || title;
+  }
+
+  title = title.replace(/\s*[-|–]\s*(Amazon|Mercado Livre|Magazine Luiza|Magalu|KaBuM|Shopee|AliExpress).*$/i, '').replace(/\n/g, '').trim();
   const description = getMeta('og:description') || getMeta('description') || '';
-  const image = getMeta('og:image') || getMeta('twitter:image') || '';
+  let image = getMeta('og:image') || getMeta('twitter:image') || '';
+
+  // Better image extraction for stores
+  if (!image || image.includes('placeholder')) {
+    const imgEl = doc.querySelector('.ui-pdp-gallery__figure__image, img.ui-pdp-image, #landingImage, #imgBlkFront, [data-testid="image-selected"] img');
+    if (imgEl) image = imgEl.getAttribute('src') || imgEl.getAttribute('data-src') || image;
+  }
 
   let price = 0;
   // Specific for ML
   if (url.includes('mercadolivre') || url.includes('meli.la')) {
     const mlPrice = doc.querySelector('.ui-pdp-price__part--medium .andes-money-amount__fraction, .andes-money-amount__fraction')?.textContent;
     if (mlPrice) price = parseFloat(mlPrice.replace(/[^\d]/g, '')) || 0;
+  } else if (url.includes('amazon') || url.includes('a.co')) {
+     const pWhole = doc.querySelector('.a-price-whole')?.textContent || '';
+     const pFrac = doc.querySelector('.a-price-fraction')?.textContent || '';
+     if (pWhole) price = parseFloat(pWhole.replace(/[^\d]/g, '') + '.' + pFrac.replace(/[^\d]/g, '')) || 0;
+  } else if (url.includes('magazineluiza') || url.includes('magalu')) {
+     const magPrice = doc.querySelector('[data-testid="price-value"]')?.textContent;
+     if (magPrice) price = parseFloat(magPrice.replace(/[^\d.,]/g, '').replace('.', '').replace(',', '.')) || 0;
   }
   
   if (!price) {
@@ -287,8 +312,8 @@ function parseProductHtml(html, url) {
   }
 
   return {
-    name: title.slice(0, 120) || 'Produto',
-    price, description: description.slice(0, 200), image,
+    name: title.slice(0, 140) || 'Produto',
+    price, description: description.slice(0, 250), image,
     store: detectStore(url)?.name || '', videoLink: url,
     room: detectRoomFromKeywords(title + ' ' + description), priority: 2, rating: 0
   };
@@ -485,10 +510,10 @@ async function searchImageByName(productName) {
   return null;
 }
 
-/* ─── Animation ─── */
-const fadeUp = { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -8 }, transition: { duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] } };
-const modalV = { initial: { opacity: 0, scale: 0.94, y: 16 }, animate: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.3, ease: [0.16, 1, 0.3, 1] } }, exit: { opacity: 0, scale: 0.96, y: 8, transition: { duration: 0.2 } } };
-const cardV = { initial: { opacity: 0, y: 16, scale: 0.97 }, animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] } }, exit: { opacity: 0, scale: 0.95, transition: { duration: 0.15 } } };
+/* ─── Animation (Snappier) ─── */
+const fadeUp = { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -8 }, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] } };
+const modalV = { initial: { opacity: 0, scale: 0.96, y: 16 }, animate: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.25, ease: [0.16, 1, 0.3, 1] } }, exit: { opacity: 0, scale: 0.98, y: 8, transition: { duration: 0.15 } } };
+const cardV = { initial: { opacity: 0, y: 12, scale: 0.98 }, animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] } }, exit: { opacity: 0, scale: 0.96, transition: { duration: 0.12 } } };
 
 /* ─── Animated Icon Component ─── */
 function AIcon({ name, size = 16, color, className = '' }) {
@@ -517,7 +542,7 @@ export default function App() {
   const [cashAmount, setCashAmount] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
-  const [sortBy, setSortBy] = useState('manual');
+  const [sortBy, setSortBy] = useState('priority');
   const [syncStatus, setSyncStatus] = useState('idle');
   const [showSettings, setShowSettings] = useState(false);
   const [showUrlModal, setShowUrlModal] = useState(false);
@@ -876,7 +901,6 @@ export default function App() {
           </div>
           <div className="tb-actions">
             <select className="tb-select glass" value={sortBy} onChange={e => setSortBy(e.target.value)}>
-              <option value="manual">Personalizado</option>
               <option value="priority">Prioridade</option>
               <option value="price">Maior Preço</option>
               <option value="rating">Avaliação</option>
@@ -935,36 +959,6 @@ export default function App() {
                   className={`card ${item.purchased ? 'purchased' : ''} ${viewMode}`} 
                   variants={cardV} initial="initial" animate="animate" exit="exit" 
                   layout
-                  drag={sortBy === 'manual'}
-                  dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-                  dragElastic={0.15}
-                  onDragEnd={(e, info) => {
-                    if (sortBy !== 'manual') return;
-                    const itemsArr = Array.from(document.querySelectorAll(`.card.${viewMode}`));
-                    const draggedIdx = filteredItems.findIndex(fi => fi.id === item.id);
-                    // Find closest sibling by distance
-                    let closest = { idx: -1, dist: 9999 };
-                    itemsArr.forEach((el, idx) => {
-                      if (idx === draggedIdx) return;
-                      const rect = el.getBoundingClientRect();
-                      const dx = info.point.x - (rect.left + rect.width / 2);
-                      const dy = info.point.y - (rect.top + rect.height / 2);
-                      const d = Math.sqrt(dx*dx + dy*dy);
-                      if (d < 50 && d < closest.dist) closest = { idx, dist: d };
-                    });
-                    if (closest.idx !== -1) {
-                      const targetId = filteredItems[closest.idx].id;
-                      setData(prev => {
-                        const nextItems = [...prev.items];
-                        const from = nextItems.findIndex(ni => ni.id === item.id);
-                        const to = nextItems.findIndex(ni => ni.id === targetId);
-                        const [moved] = nextItems.splice(from, 1);
-                        nextItems.splice(to, 0, moved);
-                        return { ...prev, items: nextItems, version: Date.now() };
-                      });
-                    }
-                  }}
-                  whileDrag={{ scale: 1.05, zIndex: 100, boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}
                   onClick={() => { setEditItem(item); setShowModal(true); }} 
                   whileHover={viewMode === 'grid' ? { y: -4, scale: 1.01 } : { x: 2 }}
                 >
@@ -1226,9 +1220,7 @@ function CategoryForm({ category, onSave, onDelete }) {
 
       <div className="form-btns">
         {onDelete && <button className="btn-danger" onClick={onDelete}><Trash2 size={14} /> Excluir</button>}
-        <button className="btn-accent" style={{ flex: 1 }} onClick={() => onSave({ ...(category || {}), name, iconKey, color, isNew: !category })} disabled={!name.trim()}>
-          {category ? 'Atualizar' : 'Criar Categoria'}
-        </button>
+        <button className="btn-accent" style={{ flex: 1 }} onClick={() => onSave({ name, iconKey, color })}>{category ? 'Atualizar' : 'Adicionar'}</button>
       </div>
     </div>
   );
@@ -1242,41 +1234,115 @@ function UrlExtractor({ rooms, onImport }) {
   const [error, setError] = useState('');
   const [edit, setEdit] = useState(null);
 
-  const handleExtract = async () => {
-    if (!url.trim()) return;
-    setLoading(true); setError(''); setResult(null);
+  const handleExtract = useCallback(async (targetUrl) => {
+    const cleanUrl = (targetUrl || url).trim();
+    if (!cleanUrl || !cleanUrl.startsWith('http')) return;
+    setLoading(true); setError(''); setResult(null); setEdit(null);
     try {
-      const data = await extractProductFromUrl(url.trim());
-      if (data?.name) { setResult(data); setEdit({ ...data }); }
-      else setError('Não foi possível extrair informações. Tente outro URL.');
-    } catch { setError('Erro ao acessar o link.'); }
+      const data = await extractProductFromUrl(cleanUrl);
+      if (data?.name && data.name !== 'Produto') { 
+        setResult(data); 
+        setEdit({ ...data }); 
+      } else {
+        setError('Não conseguimos ler os dados deste link. Tente outro ou preencha manualmente.');
+      }
+    } catch (e) { 
+      setError('Erro ao acessar o link. Pode ser uma restrição do site ou conexão.'); 
+    }
     setLoading(false);
-  };
+  }, [url]);
 
-  const handlePaste = async () => { try { const t = await navigator.clipboard.readText(); if (t) setUrl(t); } catch {} };
+  useEffect(() => {
+    if (url.length > 20 && url.startsWith('http') && !loading && !result) {
+      const t = setTimeout(() => handleExtract(), 450);
+      return () => clearTimeout(t);
+    }
+  }, [url, handleExtract, result, loading]);
+
+  const handlePaste = async () => { 
+    try { 
+      const t = await navigator.clipboard.readText(); 
+      if (t && t.startsWith('http')) {
+        setUrl(t);
+        handleExtract(t);
+      }
+    } catch {} 
+  };
 
   return (
     <div className="modal-body url-ext">
-      <p className="url-desc">Cole o link de qualquer produto (Amazon, Mercado Livre, Magazine Luiza, Shopee, KaBuM, etc.) e extrairemos automaticamente.</p>
+      <style>{`
+        .url-loading-card {
+          padding: 20px; border-radius: var(--radius);
+          background: var(--glass-bg); border: 1px solid var(--glass-border);
+          display: flex; flex-direction: column; gap: 16px; margin-top: 10px;
+        }
+        .skeleton-img { width: 100%; height: 160px; border-radius: var(--radius-sm); background: var(--glass-border); }
+        .skeleton-line { height: 14px; border-radius: 4px; background: var(--glass-border); }
+        .skeleton-line.short { width: 40%; }
+        .skeleton-line.mid { width: 70%; }
+        .url-extract-header {
+            display: flex; flex-direction: column; align-items: center; gap: 12px;
+            padding: 10px 0 20px; text-align: center;
+        }
+        .url-extract-header p { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+        .magic-sparkle { color: var(--accent); filter: drop-shadow(0 0 8px var(--accent-glow)); }
+        :root {
+          --accent-glow: rgba(245, 158, 11, 0.4);
+          --error-glow: rgba(239, 68, 68, 0.3);
+          --shimmer: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+        }
+        @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+        .shimmer { position: relative; overflow: hidden; }
+        .shimmer::after { content: ''; position: absolute; inset: 0; background: var(--shimmer); animation: shimmer 1.5s infinite; }
+      `}</style>
+      <div className="url-extract-header">
+        <motion.div animate={{ rotate: [0, 5, -5, 0] }} transition={{ repeat: Infinity, duration: 3 }}>
+           <Sparkles size={32} className="magic-sparkle" />
+        </motion.div>
+        <p>Cole o link do produto desejado e nossa IA fará o resto!</p>
+      </div>
+
       <div className="url-row">
-        <div className="url-wrap glass">
-          <Globe size={16} />
-          <input className="url-input" placeholder="Cole o link aqui..." value={url} onChange={e => setUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleExtract()} />
+        <div className="url-wrap glass transition-all">
+          <Globe size={18} className={loading ? 'animate-pulse' : ''} />
+          <input className="url-input" placeholder="https://www.loja.com/produto..." value={url} onChange={e => setUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleExtract()} />
         </div>
         <div className="url-btn-group">
-          <motion.button className="icon-btn glass" whileTap={{ scale: 0.9 }} onClick={handlePaste} title="Colar" style={{ height: '44px', width: '44px' }}><Clipboard size={16} /></motion.button>
-          <button className="btn-accent" onClick={handleExtract} disabled={loading || !url.trim()} style={{ flex: 1, height: '44px' }}>
-            {loading ? <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}><Loader2 size={16} /></motion.span> : <Search size={16} />}
-            {loading ? 'Buscando...' : 'Extrair'}
+          <motion.button className="icon-btn glass" whileTap={{ scale: 0.9 }} onClick={handlePaste} title="Colar" style={{ height: '44px', width: '44px' }}><Clipboard size={18} /></motion.button>
+          <button className="btn-accent" onClick={() => handleExtract()} disabled={loading || !url.trim()} style={{ flex: 1, height: '44px' }}>
+            {loading ? <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}><Loader2 size={18} /></motion.span> : <Search size={18} />}
+            {loading ? 'Lendo...' : 'Extrair'}
           </button>
         </div>
       </div>
-      {error && <motion.div className="url-error" {...fadeUp}><XCircle size={16} /> {error}</motion.div>}
-      {edit && (
+
+      {error && <motion.div className="url-error" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}><XCircle size={16} /> {error}</motion.div>}
+      
+      {loading && (
+        <motion.div className="url-loading-card glass" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
+          <div className="skeleton-img shimmer"></div>
+          <div className="skeleton-line mid shimmer"></div>
+          <div className="skeleton-line shimmer"></div>
+          <div className="skeleton-line short shimmer"></div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+            <div className="skeleton-line short shimmer" style={{ flex: 1 }}></div>
+            <div className="skeleton-line short shimmer" style={{ flex: 1 }}></div>
+          </div>
+        </motion.div>
+      )}
+
+      {edit && !loading && (
         <motion.div className="url-result" {...fadeUp}>
-          <div className="url-ok"><CheckCircle2 size={16} /> Produto encontrado!</div>
-          {result.image && <div className="url-img"><img src={result.image} alt="" /></div>}
-          <div className="fld"><label className="fld-label">Nome</label><input className="fld-input" value={edit.name} onChange={e => setEdit({ ...edit, name: e.target.value })} /></div>
+          <div className="url-ok"><CheckCircle2 size={18} /> Produto Identificado!</div>
+          {edit.image && (
+            <motion.div className="url-img shadow-lg" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+              <img src={edit.image} alt="" />
+            </motion.div>
+          )}
+          
+          <div className="fld"><label className="fld-label">Nome do Produto</label><input className="fld-input" value={edit.name} onChange={e => setEdit({ ...edit, name: e.target.value })} /></div>
+          
           <div className="fld-row">
             <div className="fld"><label className="fld-label">Preço</label><input type="number" className="fld-input" value={edit.price} onChange={e => setEdit({ ...edit, price: parseFloat(e.target.value) || 0 })} /></div>
             <div className="fld"><label className="fld-label">Cômodo</label>
@@ -1285,6 +1351,7 @@ function UrlExtractor({ rooms, onImport }) {
               </select>
             </div>
           </div>
+          
           <div className="fld-row">
             <div className="fld"><label className="fld-label">Prioridade</label>
               <select className="fld-select" value={edit.priority} onChange={e => setEdit({ ...edit, priority: parseInt(e.target.value) })}>
@@ -1293,7 +1360,10 @@ function UrlExtractor({ rooms, onImport }) {
             </div>
             <div className="fld"><label className="fld-label">Loja</label><input className="fld-input" value={edit.store || ''} onChange={e => setEdit({ ...edit, store: e.target.value })} /></div>
           </div>
-          <button className="btn-accent full mt-16" onClick={() => onImport(edit)}><Plus size={16} /> Adicionar à Lista</button>
+          
+          <button className="btn-accent full mt-16 py-12" onClick={() => onImport(edit)} style={{ height: '52px', fontSize: '15px' }}>
+            <Plus size={20} /> Adicionar à Lista
+          </button>
         </motion.div>
       )}
     </div>
