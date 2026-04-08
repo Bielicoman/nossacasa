@@ -1229,11 +1229,13 @@ function UrlExtractor({ rooms, onImport }) {
           <Globe size={16} />
           <input className="url-input" placeholder="Cole o link aqui..." value={url} onChange={e => setUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleExtract()} />
         </div>
-        <motion.button className="icon-btn glass" whileTap={{ scale: 0.9 }} onClick={handlePaste} title="Colar"><Clipboard size={16} /></motion.button>
-        <button className="btn-accent" onClick={handleExtract} disabled={loading || !url.trim()}>
-          {loading ? <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}><Loader2 size={16} /></motion.span> : <Search size={16} />}
-          {loading ? 'Buscando...' : 'Extrair'}
-        </button>
+        <div className="url-btn-group">
+          <motion.button className="icon-btn glass" whileTap={{ scale: 0.9 }} onClick={handlePaste} title="Colar" style={{ height: '44px', width: '44px' }}><Clipboard size={16} /></motion.button>
+          <button className="btn-accent" onClick={handleExtract} disabled={loading || !url.trim()} style={{ flex: 1, height: '44px' }}>
+            {loading ? <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }}><Loader2 size={16} /></motion.span> : <Search size={16} />}
+            {loading ? 'Buscando...' : 'Extrair'}
+          </button>
+        </div>
       </div>
       {error && <motion.div className="url-error" {...fadeUp}><XCircle size={16} /> {error}</motion.div>}
       {edit && (
